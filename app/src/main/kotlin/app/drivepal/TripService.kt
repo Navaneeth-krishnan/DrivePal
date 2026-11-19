@@ -21,6 +21,9 @@ import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import app.drivepal.core.Fix
+import app.drivepal.core.Position
+import app.drivepal.core.SourceLibrary
+import app.drivepal.core.SubjectFinder
 import app.drivepal.core.TripMonitor
 import app.drivepal.core.TripState
 
@@ -35,6 +38,8 @@ class TripService : Service() {
     private var monitor: TripMonitor? = null
     private var shownState: TripState? = null
     private val handler = Handler(Looper.getMainLooper())
+
+    private var exploration: Exploration? = null
 
     // An object, not a lambda: on Android 10 the other callbacks are abstract.
     private val locationListener = object : LocationListener {
@@ -103,6 +108,7 @@ class TripService : Service() {
             return
         }
         monitor = TripMonitor.start(SystemClock.elapsedRealtime())
+        exploration = Exploration(finder, sources)
         shownState = TripState.Driving
         TripSession.update { TripUi(running = true, state = TripState.Driving) }
         handler.postDelayed(tick, TICK_MILLIS)
@@ -114,12 +120,10 @@ class TripService : Service() {
         val speedKmh = location.speed * MS_TO_KMH
         val fixMillis = location.elapsedRealtimeNanos / NANOS_PER_MILLI
         TripSession.update {
-            it.copy(
-                speedKmh = speedKmh,
-                headingDegrees = if (location.hasBearing()) location.bearing else it.headingDegrees,
-            )
+            it.copy(speedKmh = speedKmh)
         }
         applyMonitor(current.withFix(Fix(fixMillis, speedKmh)))
+        exploration?.onPosition(Position(location.latitude, location.longitude))
     }
 
     private fun answerStillOnTheRoad() {
@@ -145,6 +149,8 @@ class TripService : Service() {
 
     private fun endTrip() {
         handler.removeCallbacks(tick)
+        exploration?.stop()
+        exploration = null
         if (monitor != null) locationManager.removeUpdates(locationListener)
         monitor = null
         shownState = null
@@ -160,6 +166,7 @@ class TripService : Service() {
     }
 
     override fun onDestroy() {
+        exploration?.stop()
         handler.removeCallbacks(tick)
         if (monitor != null) locationManager.removeUpdates(locationListener)
         monitor = null
@@ -227,5 +234,9 @@ class TripService : Service() {
         private const val TICK_MILLIS = 10_000L
         private const val MS_TO_KMH = 3.6
         private const val NANOS_PER_MILLI = 1_000_000L
+
+        // Process-wide so that what has been looked up is remembered from one Trip to the next.
+        private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime)
+        private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)
     }
 }

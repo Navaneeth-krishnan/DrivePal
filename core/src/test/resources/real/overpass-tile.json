@@ -1,0 +1,1249 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.4 2390de5a",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-19T14:21:16Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 44287288,
+  "lat": 51.8954222,
+  "lon": 4.6375491,
+  "tags": {
+    "name": "Krimpen aan de Lek",
+    "place": "village",
+    "population": "6580",
+    "population:date": "2017-01-01",
+    "postal_code": "2931",
+    "source:population": "CBS Wijk 2017",
+    "url": "https://www.krimpenerwaard.nl/",
+    "wikidata": "Q2267399",
+    "wikipedia": "nl:Krimpen aan de Lek"
+  }
+},
+{
+  "type": "node",
+  "id": 44293986,
+  "lat": 51.8969648,
+  "lon": 4.6832671,
+  "tags": {
+    "name": "Lekkerkerk",
+    "place": "village",
+    "population": "7680",
+    "population:date": "2017-01-01",
+    "postal_code": "2941",
+    "source:population": "CBS Wijk 2017",
+    "website": "http://www.nederlek.nl",
+    "wikidata": "Q3143983",
+    "wikipedia": "nl:Lekkerkerk"
+  }
+},
+{
+  "type": "node",
+  "id": 235874404,
+  "lat": 51.8144290,
+  "lon": 4.6692438,
+  "tags": {
+    "alt_name:la": "Dordrectum;Dorteraeum;Dortracum;Durdracum",
+    "loc_name": "Dordt",
+    "name": "Dordrecht",
+    "name:ar": "دوردريخت",
+    "name:carnaval": "Ooi- en Ramsgat",
+    "name:en": "Dordrecht",
+    "name:fr": "Dort",
+    "name:fy": "Doardt",
+    "name:la": "Dordracum",
+    "name:lt": "Dordrechtas",
+    "name:mk": "Дордрехт",
+    "name:ml": "ഡോർഡ്രെക്റ്റ്",
+    "name:nl": "Dordrecht",
+    "name:ru": "Дордрехт",
+    "name:sr": "Дордрехт",
+    "name:uk": "Дордрехт",
+    "name:zh-Hans": "多德雷赫特",
+    "name:zh-Hant": "多德雷赫特",
+    "place": "city",
+    "population": "122070",
+    "population:date": "2024",
+    "source:population": "Wijk- en buurtkaart 2024",
+    "wikidata": "Q26421",
+    "wikipedia": "nl:Dordrecht"
+  }
+},
+{
+  "type": "node",
+  "id": 284952107,
+  "lat": 51.8151144,
+  "lon": 4.6671831,
+  "tags": {
+    "artist:wikidata": "Q5788598;Q5985911",
+    "artist:wikimedia_commons": "Category:Cornelia Scheffer-Marjolin;Category:Joseph Mezzara",
+    "artist:wikipedia": "nl:Cornelia Scheffer;nl:Joseph Mezzara",
+    "artist_name": "Cornelia Scheffer;Joseph Mezzara",
+    "artwork_type": "statue",
+    "historic": "yes",
+    "layer": "1",
+    "material": "bronze",
+    "name": "Ary Scheffer",
+    "start_date": "1862",
+    "subject": "Ary Scheffer",
+    "subject:wikidata": "Q436726",
+    "subject:wikipedia": "nl:Ary Scheffer",
+    "tourism": "artwork",
+    "wikidata": "Q17341616",
+    "wikimedia_commons": "Category:Standbeeld Ary Scheffer (Dordrecht)",
+    "wikipedia": "nl:Standbeeld van Ary Scheffer"
+  }
+},
+{
+  "type": "node",
+  "id": 285120714,
+  "lat": 51.8728496,
+  "lon": 4.6735427,
+  "tags": {
+    "description": "Poldermolen",
+    "dhm_id": "150",
+    "man_made": "windmill",
+    "mdb_id": "945",
+    "name": "Kortlandse Molen",
+    "source": "wikipedia",
+    "wikidata": "Q11721996",
+    "wikipedia": "nl:Kortlandse Molen"
+  }
+},
+{
+  "type": "node",
+  "id": 392723830,
+  "lat": 51.8622843,
+  "lon": 4.6943508,
+  "tags": {
+    "description": "Poldermolen",
+    "dhm_id": "583",
+    "man_made": "windmill",
+    "mdb_id": "1079",
+    "name": "Kooijwijkse Molen",
+    "source": "wikipedia",
+    "wikidata": "Q11722032",
+    "wikipedia": "nl:Kooijwijkse Molen"
+  }
+},
+{
+  "type": "node",
+  "id": 447964079,
+  "lat": 51.8649156,
+  "lon": 4.6781789,
+  "tags": {
+    "man_made": "windmill",
+    "name": "Souburghse Molen",
+    "wikidata": "Q17611595",
+    "wikipedia": "nl:Souburgse Molen"
+  }
+},
+{
+  "type": "node",
+  "id": 913925086,
+  "lat": 51.8105882,
+  "lon": 4.6781803,
+  "tags": {
+    "alt_name": "De Levensboom",
+    "artist:wikidata": "Q2108120",
+    "artist_name": "Hans Petri",
+    "historic": "memorial",
+    "image": "https://photos.app.goo.gl/KwK1mGPRosa6348g6",
+    "mapillary": "1452110885153764",
+    "memorial": "obelisk",
+    "name": "Levensboom",
+    "start_date": "1952",
+    "wikidata": "Q116684791",
+    "wikimedia_commons": "File:Dordrecht kunstwerk levensboom.jpg"
+  }
+},
+{
+  "type": "node",
+  "id": 1198516303,
+  "lat": 51.8886955,
+  "lon": 4.6356972,
+  "tags": {
+    "name": "Kinderdijk",
+    "place": "village",
+    "population": "811",
+    "population:date": "2018-01-01",
+    "source:population": "https://www.gemeentemolenwaard.nl/mozard/!suite86.scherm0325?mPag=2024",
+    "wikidata": "Q740066"
+  }
+},
+{
+  "type": "node",
+  "id": 1318951318,
+  "lat": 51.8143125,
+  "lon": 4.6650589,
+  "tags": {
+    "artist_name": "Antonius Dupuis",
+    "historic": "memorial",
+    "memorial": "statue",
+    "name": "Gebroeders de Witt",
+    "url": "https://standbeelden.vanderkrogt.net/object.php?record=ZH17ad",
+    "wikidata": "Q17341606",
+    "wikimedia_commons": "File:Dordrecht standbeeld gebroeders de Witt 01.jpg"
+  }
+},
+{
+  "type": "node",
+  "id": 1506614297,
+  "lat": 51.8438893,
+  "lon": 4.6356470,
+  "tags": {
+    "name": "Hendrik-Ido-Ambacht",
+    "name:carnaval": "Roestrammerdam",
+    "name:ru": "Хендрик-Идо-Амбахт",
+    "place": "town",
+    "population": "31258",
+    "population:date": "2021-01-01",
+    "postal_code": "3344",
+    "source:population": "https://ocd.buurtmonitor.nl/jive",
+    "website": "https://www.h-i-ambacht.nl/",
+    "wikidata": "Q538725",
+    "wikipedia": "nl:Hendrik-Ido-Ambacht"
+  }
+},
+{
+  "type": "node",
+  "id": 1523625769,
+  "lat": 51.8162227,
+  "lon": 4.6405166,
+  "tags": {
+    "name": "Zwijndrecht",
+    "name:carnaval": "Peebos",
+    "name:la": "Zuindracum",
+    "name:nl": "Zwijndrecht",
+    "name:ru": "Звейндрехт",
+    "place": "town",
+    "population": "44775",
+    "population:date": "2021-01-01",
+    "source:population": "https://ocd.buurtmonitor.nl/jive",
+    "website": "https://www.zwijndrecht.nl/",
+    "wikidata": "Q244692",
+    "wikipedia": "nl:Zwijndrecht (Nederland)"
+  }
+},
+{
+  "type": "node",
+  "id": 1529225920,
+  "lat": 51.8348695,
+  "lon": 4.6937293,
+  "tags": {
+    "name": "Papendrecht",
+    "name:carnaval": "Erwtepellerwaard",
+    "name:ru": "Папендрехт",
+    "place": "town",
+    "population": "32171",
+    "population:date": "2021-01-01",
+    "postal_code": "3355",
+    "source:population": "https://ocd.buurtmonitor.nl/jive",
+    "website": "https://www.papendrecht.nl/",
+    "wikidata": "Q934511",
+    "wikipedia": "nl:Papendrecht"
+  }
+},
+{
+  "type": "node",
+  "id": 1547889665,
+  "lat": 51.8657990,
+  "lon": 4.6653953,
+  "tags": {
+    "name": "Alblasserdam",
+    "name:nl": "Alblasserdam",
+    "name:ru": "Алблассердам",
+    "place": "village",
+    "population": "20136",
+    "population:date": "2021-01-01",
+    "source:population": "https://ocd.buurtmonitor.nl/jive",
+    "website": "https://www.alblasserdam.nl/",
+    "wikidata": "Q736131",
+    "wikipedia": "nl:Alblasserdam"
+  }
+},
+{
+  "type": "node",
+  "id": 1926751433,
+  "lat": 51.8521989,
+  "lon": 4.6377840,
+  "tags": {
+    "name": "Oostendam",
+    "place": "village",
+    "population": "605",
+    "population:date": "2017-01-01",
+    "source:population": "CBS Wijk 2017",
+    "wikidata": "Q2603031",
+    "wikipedia": "nl:Oostendam"
+  }
+},
+{
+  "type": "node",
+  "id": 2795992511,
+  "lat": 51.8139445,
+  "lon": 4.6643601,
+  "tags": {
+    "addr:city": "Dordrecht",
+    "addr:housenumber": "1",
+    "addr:postcode": "3311CR",
+    "addr:street": "Stadhuisplein",
+    "amenity": "townhall",
+    "historic": "building",
+    "name": "Stadhuis",
+    "operator": "Gemeente Dordrecht",
+    "phone": "+31 78 639 8989",
+    "phone:NL": "14 078",
+    "website": "https://cms.dordrecht.nl/",
+    "wikidata": "Q2485006",
+    "wikipedia": "nl:Stadhuis van Dordrecht"
+  }
+},
+{
+  "type": "node",
+  "id": 2800555098,
+  "lat": 51.8174658,
+  "lon": 4.6680179,
+  "tags": {
+    "historic": "house",
+    "name": "Dit is in de Bevereburgh",
+    "wikidata": "Q11722017",
+    "wikipedia": "nl:Dit is in Beverenburgh"
+  }
+},
+{
+  "type": "node",
+  "id": 2800555100,
+  "lat": 51.8141201,
+  "lon": 4.6721539,
+  "tags": {
+    "addr:city": "Dordrecht",
+    "addr:housenumber": "40",
+    "addr:postcode": "3311XP",
+    "addr:street": "Museumstraat",
+    "contact:facebook": "dordrechtsmuseum",
+    "contact:instagram": "dordrechtsmuseum",
+    "contact:twitter": "hetdordts",
+    "email": "info@dordrechtsmuseum.nl",
+    "fee": "yes",
+    "name": "Dordrechts Museum",
+    "opening_hours": "Tu-Su 11:00-17:00",
+    "payment:museumkaart": "yes",
+    "phone": "+31 78 770 8708",
+    "source": "BAG",
+    "source:date": "2014-03-24",
+    "tourism": "museum",
+    "website": "https://www.dordrechtsmuseum.nl/",
+    "wikidata": "Q2874177",
+    "wikipedia": "nl:Dordrechts Museum"
+  }
+},
+{
+  "type": "node",
+  "id": 2800555803,
+  "lat": 51.8165071,
+  "lon": 4.6639375,
+  "tags": {
+    "addr:city": "Dordrecht",
+    "addr:housenumber": "28",
+    "addr:postcode": "3311AP",
+    "addr:street": "Nieuwe Haven",
+    "fee": "yes",
+    "museum": "history",
+    "name": "Museum 1940-1945",
+    "opening_hours": "Su-Tu off; We-Sa 11:00-16:00; PH off",
+    "payment:museumkaart": "yes",
+    "source": "BAG",
+    "source:date": "2014-03-24",
+    "tourism": "museum",
+    "website": "https://www.museum19401945.nl/",
+    "wheelchair": "no",
+    "wikidata": "Q2857579",
+    "wikipedia": "nl:Museum 1940-1945"
+  }
+},
+{
+  "type": "node",
+  "id": 2800555804,
+  "lat": 51.8163845,
+  "lon": 4.6636485,
+  "tags": {
+    "fee": "yes",
+    "name": "Museum Mr. Simon Van Gijn",
+    "opening_hours": "We-Su 11:00-17:00",
+    "payment:museumkaart": "yes",
+    "toilets:wheelchair": "yes",
+    "tourism": "museum",
+    "website": "https://www.huisvangijn.nl/",
+    "wheelchair": "yes",
+    "wikidata": "Q2425770",
+    "wikipedia": "nl:Huis Van Gijn"
+  }
+},
+{
+  "type": "node",
+  "id": 3304498033,
+  "lat": 51.8169225,
+  "lon": 4.6858748,
+  "tags": {
+    "name": "Binnenvaartmuseum",
+    "tourism": "museum",
+    "website": "https://www.debinnenvaart.nl/binnenvaartmuseum",
+    "wikidata": "Q1991691",
+    "wikipedia": "nl:Binnenvaartmuseum (Dordrecht)"
+  }
+},
+{
+  "type": "node",
+  "id": 3580096097,
+  "lat": 51.8837234,
+  "lon": 4.6068121,
+  "tags": {
+    "name": "Slikkerveer",
+    "place": "village",
+    "population": "8760",
+    "population:date": "2017-01-01",
+    "source:population": "CBS Wijk 2017",
+    "wikidata": "Q2587009",
+    "wikipedia": "nl:Slikkerveer"
+  }
+},
+{
+  "type": "node",
+  "id": 6139700685,
+  "lat": 51.8863044,
+  "lon": 4.6771940,
+  "tags": {
+    "name": "Nieuw-Lekkerland",
+    "place": "village",
+    "population": "8464",
+    "population:date": "2018-01-01",
+    "postal_code": "2957;2961",
+    "source": "https://www.gemeentemolenwaard.nl/",
+    "wikidata": "Q846242",
+    "wikipedia": "nl:Nieuw-Lekkerland (dorp)"
+  }
+},
+{
+  "type": "node",
+  "id": 9175988860,
+  "lat": 51.8165225,
+  "lon": 4.6661847,
+  "tags": {
+    "artist:wikidata": "Q1919735",
+    "artist_name": "Jan Haas",
+    "historic": "memorial",
+    "name": "Dirk IV Graaf van Holland",
+    "start_date": "1979",
+    "subject:wikidata": "Q1223864",
+    "url": "https://standbeelden.vanderkrogt.net/object.php?record=ZH17aa",
+    "wikidata": "Q131611763"
+  }
+},
+{
+  "type": "node",
+  "id": 9464583594,
+  "lat": 51.8174971,
+  "lon": 4.6657021,
+  "tags": {
+    "alt_name": "Het dokje van Straatman;Scheepslift Wolwevershaven",
+    "name": "Schroevendok Straatman",
+    "start_date": "1928",
+    "tourism": "attraction",
+    "waterway": "dock",
+    "website": "https://indordrecht.nl/locaties/schroevendok-straatman/",
+    "wikidata": "Q17341533",
+    "wikipedia": "nl:Schroevendok Straatman"
+  }
+},
+{
+  "type": "node",
+  "id": 9898131896,
+  "lat": 51.8864363,
+  "lon": 4.6771772,
+  "tags": {
+    "access": "yes",
+    "artist_name": "Wilhelmina M. (Inez) Oerlemans-Hegeman",
+    "historic": "memorial",
+    "inscription": "‘EENS UIT DE ARK GEZONDEN VERZETSBERICHT GEBRACHT VREDE WORDT WEER GEVONDEN WAAR OORLOG WORDT HERDACHT’.",
+    "inscription:url": "https://www.4en5mei.nl/oorlogsmonumenten/zoeken/117/nieuw-lekkerland-vredesmonument",
+    "material": "bronze",
+    "memorial": "sculpture",
+    "memorial:conflict": "WW2",
+    "name": "Vredesmonument",
+    "start_date": "2002-05-5",
+    "war_memorial": "yes",
+    "website": "https://www.4en5mei.nl/oorlogsmonumenten/zoeken/117/",
+    "wikidata": "Q57907891",
+    "wikimedia_commons": "File:Vredesmonument Nieuw-Lekkerland.jpg"
+  }
+},
+{
+  "type": "way",
+  "id": 267405920,
+  "center": {
+    "lat": 51.8878493,
+    "lon": 4.6600548
+  },
+  "tags": {
+    "building": "windmill",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "name": "Molen De Regt",
+    "ref:bag": "0571100000006017",
+    "ref:rce": "30537",
+    "ref:tenbruggencate": "01498",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1850",
+    "wikidata": "Q2278563",
+    "wikipedia": "nl:De Regt (molen)"
+  }
+},
+{
+  "type": "way",
+  "id": 267405938,
+  "center": {
+    "lat": 51.8838086,
+    "lon": 4.6519746
+  },
+  "tags": {
+    "access": "no",
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "206",
+    "functional": "yes",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1002",
+    "name": "Kleine of Lage Molen",
+    "ref:bag": "0571100000000668",
+    "ref:rce": "30539",
+    "ref:tenbruggencate": "01510",
+    "source": "BAG",
+    "source:date": "2020-02-23",
+    "start_date": "1761",
+    "wikidata": "Q1855262",
+    "wikipedia": "nl:Kleine of Lage Molen",
+    "windmill:disused": "yes",
+    "windmill:vanes": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 267408519,
+  "center": {
+    "lat": 51.8858410,
+    "lon": 4.6490534
+  },
+  "tags": {
+    "access": "no",
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "205",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1001",
+    "name": "De Hoge Molen",
+    "ref:bag": "0571100000001196",
+    "ref:rce": "30538",
+    "ref:tenbruggencate": "01509",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q2564901",
+    "wikipedia": "nl:De Hoge Molen"
+  }
+},
+{
+  "type": "way",
+  "id": 267410219,
+  "center": {
+    "lat": 51.8806044,
+    "lon": 4.6456609
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "179",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1013",
+    "name": "Overwaard Molen No.3",
+    "ref:bag": "0571100000001583",
+    "ref:rce": "30553",
+    "ref:tenbruggencate": "01503",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q2361259",
+    "wikipedia": "nl:Overwaard Molen No.3"
+  }
+},
+{
+  "type": "way",
+  "id": 267410254,
+  "center": {
+    "lat": 51.8842099,
+    "lon": 4.6424880
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "177",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1011",
+    "name": "Overwaard Molen No.1",
+    "ref:bag": "0571100000000222",
+    "ref:rce": "30551",
+    "ref:tenbruggencate": "01501",
+    "source": "BAG",
+    "source:date": "2017-07-18",
+    "start_date": "1740",
+    "wikidata": "Q2684110",
+    "wikipedia": "nl:Overwaard Molen No.1"
+  }
+},
+{
+  "type": "way",
+  "id": 267410268,
+  "center": {
+    "lat": 51.8824177,
+    "lon": 4.6414305
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "171",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1005",
+    "name": "Nederwaard Molen No.3",
+    "ref:bag": "0571100000000241",
+    "ref:rce": "30545",
+    "ref:tenbruggencate": "01514 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1738",
+    "wikidata": "Q2161843",
+    "wikipedia": "nl:Nederwaard Molen No.3"
+  }
+},
+{
+  "type": "way",
+  "id": 267410272,
+  "center": {
+    "lat": 51.8780654,
+    "lon": 4.6388458
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "176",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1010",
+    "name": "Nederwaard Molen No.8",
+    "ref:bag": "0571100000001406",
+    "ref:rce": "30550",
+    "ref:tenbruggencate": "01519 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q1829330",
+    "wikipedia": "nl:Nederwaard Molen No.8"
+  }
+},
+{
+  "type": "way",
+  "id": 267410273,
+  "center": {
+    "lat": 51.8833899,
+    "lon": 4.6399794
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "170",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1004",
+    "name": "Nederwaard Molen No.2",
+    "ref:bag": "0571100000001581",
+    "ref:rce": "30544",
+    "ref:tenbruggencate": "01513 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1738",
+    "wikidata": "Q3196624",
+    "wikipedia": "nl:Nederwaard Molen No.2"
+  }
+},
+{
+  "type": "way",
+  "id": 267410274,
+  "center": {
+    "lat": 51.8846918,
+    "lon": 4.6393325
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "169",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1003",
+    "name": "Nederwaard Molen No.1",
+    "ref:bag": "0571100000001018",
+    "ref:rce": "30543",
+    "ref:tenbruggencate": "01512 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q3230029",
+    "wikipedia": "nl:Nederwaard Molen No.1"
+  }
+},
+{
+  "type": "way",
+  "id": 267410275,
+  "center": {
+    "lat": 51.8811826,
+    "lon": 4.6419361
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "173",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1006",
+    "name": "Nederwaard Molen No.4",
+    "ref:bag": "0571100000000460",
+    "ref:rce": "30546",
+    "ref:tenbruggencate": "01514 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1738",
+    "wikidata": "Q4357544",
+    "wikipedia": "nl:Nederwaard Molen No.4"
+  }
+},
+{
+  "type": "way",
+  "id": 267410276,
+  "center": {
+    "lat": 51.8790574,
+    "lon": 4.6396352
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "175",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1009",
+    "name": "Nederwaard Molen No.7",
+    "ref:bag": "0571100000000105",
+    "ref:rce": "30549",
+    "ref:tenbruggencate": "01518 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1738",
+    "wikidata": "Q2991112",
+    "wikipedia": "nl:Nederwaard Molen No.7"
+  }
+},
+{
+  "type": "way",
+  "id": 267410279,
+  "center": {
+    "lat": 51.8798557,
+    "lon": 4.6410663
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "174",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1008",
+    "name": "Nederwaard Molen No.6",
+    "ref:bag": "0571100000000418",
+    "ref:rce": "30548",
+    "ref:tenbruggencate": "01517 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1738",
+    "wikidata": "Q2540480",
+    "wikipedia": "nl:Nederwaard Molen No.6"
+  }
+},
+{
+  "type": "way",
+  "id": 267410280,
+  "center": {
+    "lat": 51.8801705,
+    "lon": 4.6434256
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "174",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1007",
+    "name": "Nederwaard Molen No.5",
+    "ref:bag": "0571100000001489",
+    "ref:rce": "30547",
+    "ref:tenbruggencate": "01516 bis",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1738",
+    "wikidata": "Q2520320",
+    "wikipedia": "nl:Nederwaard Molen No.5"
+  }
+},
+{
+  "type": "way",
+  "id": 267410766,
+  "center": {
+    "lat": 51.8786325,
+    "lon": 4.6516393
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "201",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1016",
+    "name": "Overwaard Molen No.6",
+    "ref:bag": "0571100000000125",
+    "ref:rce": "30556",
+    "ref:tenbruggencate": "01506",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q2108054",
+    "wikipedia": "nl:Overwaard Molen No.6"
+  }
+},
+{
+  "type": "way",
+  "id": 267410796,
+  "center": {
+    "lat": 51.8795242,
+    "lon": 4.6468398
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "180",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1014",
+    "name": "Overwaard Molen No.4",
+    "ref:bag": "0571100000000462",
+    "ref:rce": "30554",
+    "ref:tenbruggencate": "01504",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q2155967",
+    "wikipedia": "nl:Overwaard Molen No.4"
+  }
+},
+{
+  "type": "way",
+  "id": 267410805,
+  "center": {
+    "lat": 51.8781368,
+    "lon": 4.6539804
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "203",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1017",
+    "name": "Overwaard Molen No.7",
+    "ref:bag": "0571100000000969",
+    "ref:rce": "30557",
+    "ref:tenbruggencate": "01507",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q1908785",
+    "wikipedia": "nl:Overwaard Molen No.7"
+  }
+},
+{
+  "type": "way",
+  "id": 267410809,
+  "center": {
+    "lat": 51.8791116,
+    "lon": 4.6491877
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "199",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1015",
+    "name": "Overwaard Molen No.5",
+    "ref:bag": "0571100000001129",
+    "ref:rce": "30555",
+    "ref:tenbruggencate": "01505",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q2857557",
+    "wikipedia": "nl:Overwaard Molen No.5"
+  }
+},
+{
+  "type": "way",
+  "id": 267410810,
+  "center": {
+    "lat": 51.8819188,
+    "lon": 4.6444926
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "178",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1012",
+    "name": "Overwaard Molen No.2",
+    "ref:bag": "0571100000001592",
+    "ref:rce": "30552",
+    "ref:tenbruggencate": "12589",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1985",
+    "wikidata": "Q2778904",
+    "wikipedia": "nl:Overwaard Molen No.2"
+  }
+},
+{
+  "type": "way",
+  "id": 267410824,
+  "center": {
+    "lat": 51.8776284,
+    "lon": 4.6562869
+  },
+  "tags": {
+    "building": "windmill",
+    "description": "Poldermolen",
+    "dhm_id": "204",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "mdb_id": "1018",
+    "name": "Overwaard Molen No.8",
+    "ref:bag": "0571100000000514",
+    "ref:rce": "30558",
+    "ref:tenbruggencate": "01508",
+    "source": "BAG",
+    "source:date": "2014-02-11",
+    "start_date": "1740",
+    "wikidata": "Q2687951",
+    "wikipedia": "nl:Overwaard Molen No.8"
+  }
+},
+{
+  "type": "way",
+  "id": 273483091,
+  "center": {
+    "lat": 51.8156747,
+    "lon": 4.6789029
+  },
+  "tags": {
+    "building": "yes",
+    "description": "Korenmolen",
+    "dhm_id": "48",
+    "man_made": "windmill",
+    "mdb_id": "962",
+    "name": "Kyck over den Dyck",
+    "ref:bag": "0505100000025028",
+    "source": "BAG",
+    "source:date": "2014-03-24",
+    "start_date": "1713",
+    "wikidata": "Q2040813",
+    "wikipedia": "nl:Kyck over den Dyck"
+  }
+},
+{
+  "type": "way",
+  "id": 274945455,
+  "center": {
+    "lat": 51.8141582,
+    "lon": 4.6606124
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "church",
+    "denomination": "protestant",
+    "fee": "yes",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "image": "https://photos.app.goo.gl/S32GzmW9ygZYq9pc7",
+    "mapillary": "1845836412248766",
+    "name": "Grote of Onze-Lieve-Vrouwekerk",
+    "opening_hours": "Tu-Fr 10:30-16:30; Su 12:00-16:00; Feb-Mar Sa 12:00-16:00; Nov-Dec Sa 12:00-16:00; Jan off",
+    "ref:bag": "0505100000013404",
+    "ref:rce": "13417",
+    "religion": "christian",
+    "roof:colour": "black",
+    "roof:levels": "1",
+    "roof:shape": "quadruple_saltbox",
+    "source": "BAG",
+    "source:date": "2014-03-24",
+    "start_date": "1325",
+    "tourism": "attraction",
+    "website": "https://www.grotekerk-dordrecht.nl/",
+    "wikidata": "Q2024749",
+    "wikipedia": "nl:Grote of Onze-Lieve-Vrouwekerk (Dordrecht)"
+  }
+},
+{
+  "type": "way",
+  "id": 274945517,
+  "center": {
+    "lat": 51.8087577,
+    "lon": 4.6611798
+  },
+  "tags": {
+    "building": "public",
+    "historic": "building",
+    "name": "Holland van 1859",
+    "ref:bag": "0505100000014489",
+    "source": "BAG",
+    "source:date": "2022-05-19",
+    "start_date": "1939",
+    "wikidata": "Q1818525",
+    "wikipedia": "nl:De Holland (Dordrecht)"
+  }
+},
+{
+  "type": "way",
+  "id": 276188035,
+  "center": {
+    "lat": 51.8184902,
+    "lon": 4.6656200
+  },
+  "tags": {
+    "building": "commercial",
+    "historic": "building",
+    "name": "Stokholm",
+    "ref:bag": "0505100000018425",
+    "source": "BAG",
+    "source:date": "2021-12-13",
+    "start_date": "1730",
+    "wikidata": "Q17341264",
+    "wikipedia": "nl:Stokholm (Dordrecht)"
+  }
+},
+{
+  "type": "way",
+  "id": 276188106,
+  "center": {
+    "lat": 51.8195987,
+    "lon": 4.6702840
+  },
+  "tags": {
+    "building": "yes",
+    "historic": "city_gate",
+    "image": "https://photos.app.goo.gl/7tUtqo7LQxfexhLQ6",
+    "mapillary": "927260374718888",
+    "name": "Groothoofdspoort",
+    "ref:bag": "0505100000017857",
+    "source": "BAG",
+    "source:date": "2014-03-24",
+    "start_date": "1975",
+    "tourism": "attraction",
+    "url": "https://www.youtube.com/watch?v=EFd7obX6SNo",
+    "wikidata": "Q2219171",
+    "wikimedia_commons": "Category:Groothoofdspoort",
+    "wikipedia": "nl:Groothoofdspoort"
+  }
+},
+{
+  "type": "way",
+  "id": 276189362,
+  "center": {
+    "lat": 51.8179914,
+    "lon": 4.6732699
+  },
+  "tags": {
+    "building": "yes",
+    "historic": "building",
+    "name": "Nieuw- of Sint Nicolaaskerk",
+    "ref:bag": "0505100000017716",
+    "source": "BAG",
+    "source:date": "2014-03-24",
+    "start_date": "1600",
+    "wikidata": "Q2760330",
+    "wikipedia": "nl:Nieuwkerk (Dordrecht)"
+  }
+},
+{
+  "type": "way",
+  "id": 281914320,
+  "center": {
+    "lat": 51.8676293,
+    "lon": 4.6431969
+  },
+  "tags": {
+    "building": "house",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "historic": "building",
+    "name": "Huis te Kinderdijk",
+    "ref:bag": "0482100001244055",
+    "ref:rce": "7098",
+    "source": "BAG",
+    "source:date": "2019-12-24",
+    "start_date": "1720",
+    "wikidata": "Q17611599",
+    "wikimedia_commons": "Category:Oost Kinderdijk 191, Alblasserdam",
+    "wikipedia": "nl:Huis te Kinderdijk"
+  }
+},
+{
+  "type": "way",
+  "id": 281930998,
+  "center": {
+    "lat": 51.8784209,
+    "lon": 4.6464893
+  },
+  "tags": {
+    "alt_name": "Blokkerse wip",
+    "building": "windmill",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "man_made": "windmill",
+    "name": "De Blokker",
+    "ref:bag": "0482100001254237",
+    "ref:rce": "7091",
+    "source": "BAG",
+    "source:date": "2026-02-25",
+    "start_date": "2010",
+    "wikidata": "Q2534242",
+    "wikipedia": "nl:De Blokker"
+  }
+},
+{
+  "type": "way",
+  "id": 281932442,
+  "center": {
+    "lat": 51.8730037,
+    "lon": 4.6355960
+  },
+  "tags": {
+    "addr:city": "Alblasserdam",
+    "addr:housenumber": "89",
+    "addr:postcode": "2953XP",
+    "addr:street": "West Kinderdijk",
+    "building": "yes",
+    "museum": "house_museum",
+    "name": "Huis van Zessen",
+    "opening_hours": "\"by appointment\"",
+    "ref:bag": "0482100001247337",
+    "source": "BAG",
+    "source:date": "2014-05-07",
+    "start_date": "1930",
+    "tourism": "museum",
+    "website": "https://www.huisvanzessenalblasserdam.nl/",
+    "wikidata": "Q15876504",
+    "wikipedia": "nl:Huis van Zessen (Alblasserdam)"
+  }
+},
+{
+  "type": "way",
+  "id": 463432589,
+  "center": {
+    "lat": 51.8116398,
+    "lon": 4.6948440
+  },
+  "tags": {
+    "area": "yes",
+    "barrier": "wall",
+    "heritage": "2",
+    "heritage:operator": "rce",
+    "historic": "yes",
+    "name": "Schietbaanmuur",
+    "wall": "stone",
+    "wikidata": "Q17341514"
+  }
+},
+{
+  "type": "way",
+  "id": 1248266462,
+  "center": {
+    "lat": 51.8156829,
+    "lon": 4.6599863
+  },
+  "tags": {
+    "building": "yes",
+    "historic": "city_gate",
+    "name": "Catharijnepoort",
+    "start_date": "1652",
+    "wikidata": "Q2245008",
+    "wikipedia": "nl:Catharijnepoort (Dordrecht)"
+  }
+},
+{
+  "type": "relation",
+  "id": 4597310,
+  "center": {
+    "lat": 51.8817325,
+    "lon": 4.6475710
+  },
+  "tags": {
+    "heritage": "1",
+    "heritage:operator": "whc",
+    "heritage:website": "http://whc.unesco.org/en/list/818",
+    "man_made": "windmill",
+    "name": "Kinderdijkse Molens",
+    "name:en": "Mill Network at Kinderdijk-Elshout",
+    "name:nl": "Kinderdijkse Molens",
+    "ref:whc": "818",
+    "tourism": "attraction",
+    "type": "site",
+    "website": "https://www.kinderdijk.nl",
+    "whc:criteria": "(i)(ii)(iv)",
+    "whc:inscription_date": "1997",
+    "wikidata": "Q12012965",
+    "wikipedia": "nl:Kinderdijkse molens"
+  }
+}
+
+  ]
+}

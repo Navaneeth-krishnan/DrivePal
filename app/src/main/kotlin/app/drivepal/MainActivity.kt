@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -57,7 +59,7 @@ private fun TripScreen(ui: TripUi) {
     }
 
     Column(
-        modifier = Modifier.statusBarsPadding().padding(24.dp),
+        modifier = Modifier.statusBarsPadding().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("DrivePal", style = MaterialTheme.typography.headlineMedium)
@@ -71,6 +73,7 @@ private fun TripScreen(ui: TripUi) {
             style = MaterialTheme.typography.titleLarge,
         )
         ui.notice?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        ui.problem?.let { Text("Place lookup: $it", color = MaterialTheme.colorScheme.error) }
         if (locationDenied) {
             Text(
                 "DrivePal needs precise location (not just approximate) to follow your drive.",
@@ -83,6 +86,7 @@ private fun TripScreen(ui: TripUi) {
                 Text("I'm still on the road")
             }
         }
+        ui.happenings.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
         if (ui.running) {
             OutlinedButton(onClick = { send(context, TripService.ACTION_STOP) }) { Text("Stop Trip") }
         } else {
