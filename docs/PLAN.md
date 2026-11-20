@@ -90,7 +90,7 @@ Each one ends with something you can run and check.
 | **M0** | **Project skeleton.** Gradle 9.9 / Android Gradle Plugin 9.5 / Kotlin 2.4 / Compose; minimum Android 10 (API 29), target Android 37 | The app builds, installs and opens on `DrivePal_API37` |
 | **M1** | **Trip and location.** Foreground service; `LocationManager` GPS updates; permissions; live speed and heading on screen; Standstill detection and the Still-on-the-road check | Replaying a route in the emulator updates speed (and heading, where the device reports a bearing); tracking continues with the screen off; a parked replay triggers the check and ends the Trip |
 | **M2** | **Finding subjects. Done.** Entering a Country or Province (Nominatim); Passing Towns and Landmarks within about 3 km (Overpass, one query per 0.1° tile, cached); heading derived from consecutive fixes; Sources from Wikipedia (language links give the number of language editions, Wikidata only when a subject has no Wikipedia tag); story-worthy means 150+ words; failed lookups are shown on screen and retried | On a replayed route past Kinderdijk the app entered the Netherlands and South Holland, then Passed towns and landmarks in order, with Source word counts and language editions, against the live services |
-| **M3** | **Writing Stories. Done for Towns and Landmarks; Areas and Interludes come with M5.** `ChatClient` for any OpenAI-compatible server (thinking switched off with `reasoning_effort: none`, which fixed empty answers); `StoryPrompt` (length by kind and Talkativeness, grounding rules, "Back there, behind us…" lead-in, Framing from earlier Stories, no left/right claims); `StoryWriter` (strips stage directions and markdown, cuts at a sentence, retries once when a number or legend is not in the article, then falls back to the start of the article) | Live on the emulator against real Wikipedia and local Ollama (`gemma4:e4b`): Stories in English from Dutch articles. **Known limit:** the small local model sometimes mistranslates Dutch ("built before 1808" became "built in 1808"), which no check can catch, so compare a stronger model (needs an API key) before v1 |
+| **M3** | **Writing Stories. Done for Towns and Landmarks; Areas and Interludes come with M5.** `ChatClient` for any OpenAI-compatible server (thinking switched off with `reasoning_effort: none`, which fixed empty answers); `StoryPrompt` (length by kind and Talkativeness, grounding rules, "Back there, behind us…" lead-in, Framing from earlier Stories, no left/right claims); `StoryWriter` (strips stage directions and markdown, cuts at a sentence, retries once when a number or legend is not in the article, then falls back to the start of the article) | Live on the emulator against real Wikipedia and local Ollama (`gemma4:e4b`): Stories in English from Dutch articles. **Known limit:** the small local model mistranslates Dutch ("built before 1808" became "built in 1808"), which no check can catch. Compared with Gemini (see the model comparison): Flash-Lite got it right every time at the same speed, so it is the default for real drives |
 | **M4** | **Narration.** Android text-to-speech; music is lowered while it talks; Media3 session (*next* = Skip, *play* = replay or answer the check); resume Interrupted Stories | A Story plays over music, Bluetooth buttons work, and a simulated call interrupts and resumes it |
 | **M5** | **Pacing and memory.** Priority order, Talkativeness gaps, Relevance and dropping, Interludes with doubling gap, Told memory (30 days, across Trips) | An hour-long replayed route sounds natural in all three modes; replaying it a second time doesn't repeat Told Stories |
 | **M6** | **Trip log and settings.** Trips with their Stories and Sources; Talkativeness; AI provider, endpoint, model and API key | You can look back over past Trips and see each Story's Source; you can switch AI providers without rebuilding |
@@ -103,7 +103,7 @@ There is one `StoryWriter` interface, with one client for the **OpenAI-compatibl
 | Provider | Cost | When to use it |
 |---|---|---|
 | **Ollama (local)**, model `gemma4:e4b` | Free | **Default for development.** Runs on the laptop's RTX 3070. The emulator reaches it at `http://10.0.2.2:11434/v1`. A phone on the same Wi-Fi needs `OLLAMA_HOST=0.0.0.0` on the laptop. Not reachable from the car. |
-| **Google Gemini API** (through its OpenAI-compatible endpoint) | Free tier, rate-limited | Real drives. Free-tier data may be used by Google to improve its models. |
+| **Google Gemini API** (through its OpenAI-compatible endpoint), model `gemini-3.5-flash-lite` | Free tier, rate-limited | **Chosen for real drives** (see the comparison below). Free-tier data may be used by Google to improve its models; it only ever receives place names and article text, never your position. Needs `reasoning_effort` left out. |
 | **Groq / OpenRouter free models** | Free tier, rate-limited | Real drives; fast open-source models |
 | **OpenAI API** | Paid (separate from a ChatGPT subscription) | Comparing story quality |
 | **Claude** (Anthropic Java SDK) | Paid, about $0.01–0.03 per Story | Can be added later as a second `StoryWriter` implementation |
@@ -111,7 +111,22 @@ There is one `StoryWriter` interface, with one client for the **OpenAI-compatibl
 - **API keys:** stored in `local.properties` (not committed to git) or entered in settings, and stored on the device. That's fine for personal use, but no key may be in the app if it is ever published.
 - **Plain HTTP:** only allowed for `10.0.2.2` and LAN addresses (for Ollama), through a debug-only network security config.
 - **Timeouts:** a Story must arrive while it's still Relevant. If the model is too slow, fall back to the Wikipedia summary.
-- **Quality check:** for each test Story, does every factual claim appear in the Source?
+- **Quality check:** for each test Story, does every factual claim appear in the Source? Done by hand on a handful of real Stories (see below).
+
+#### Model comparison (2026-11-20)
+
+Same prompt, one Dutch article (Molen De Regt, 195 words) that the first local run got wrong, three samples each, Normal Talkativeness, Landmark (target 75–112 words):
+
+| | Local `gemma4:e4b` | `gemini-3.5-flash-lite` | `gemini-3.5-flash` |
+|---|---|---|---|
+| "built **before** 1808" (the article says *voor 1808*) | wrong 3 of 3 ("built in 1808") | **right 3 of 3** | right 3 of 3 |
+| Legend invented | 1 of 3 | 0 of 3 | 0 of 3 |
+| Claims about which side of the road (the prompt forbids them) | 0 of 3 | 0 of 3 | 0 of 3 (my word search also matched "right here" and "right beside us", which are not side claims) |
+| Time per Story | ~1.4 s warm, ~15 s cold | **~1.6 s** | **30–57 s** (too slow while driving) |
+| Words | 65–70 | 100–107 | 102–110 |
+| `reasoning_effort: "none"` | accepted, and needed | rejected with HTTP 400 | accepted |
+
+Decision: use **Gemini 3.5 Flash-Lite** for real drives and keep local Ollama for offline development. Dutch terms for mills (*grondzeiler*, *stellingmolen*) are still translated clumsily by every model. A cloud model also faces one-off rate limits on the free tier, so the fallback to the article text stays.
 
 ### Testing
 
