@@ -57,6 +57,9 @@ class Narrator(
         }, handler)
     }
 
+    /** True while something is being told, or was cut off and is waiting to continue. */
+    val isTelling: Boolean get() = controller.isActive
+
     fun tell(utterance: Utterance) = dispatch(NarrationEvent.StoryReady(utterance))
 
     fun ask(utterance: Utterance) = dispatch(NarrationEvent.QuestionReady(utterance))

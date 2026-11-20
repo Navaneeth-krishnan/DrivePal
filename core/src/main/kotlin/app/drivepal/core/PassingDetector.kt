@@ -1,6 +1,6 @@
 package app.drivepal.core
 
-enum class SubjectKind { Town, Landmark }
+enum class SubjectKind { Town, Landmark, Province, Country }
 
 /** A Town or Landmark that might get a Story. */
 data class Subject(

@@ -3,6 +3,7 @@ package app.drivepal
 import app.drivepal.core.AreaEvent
 import app.drivepal.core.StoryResult
 import app.drivepal.core.Subject
+import app.drivepal.core.SubjectKind
 import app.drivepal.core.SourceLookup
 
 /** One line for the screen about something DrivePal noticed. */
@@ -13,12 +14,13 @@ fun describe(event: AreaEvent): String = when (event) {
 
 fun describePassing(subject: Subject, lookup: SourceLookup): String {
     val what = "${subject.name} (${subject.kind.name.lowercase()})"
+    val prefix = if (subject.kind == SubjectKind.Country || subject.kind == SubjectKind.Province) "Source for" else "Passing"
     return when (lookup) {
         is SourceLookup.Found ->
-            "Passing $what: Story-worthy, ${lookup.source.notability.languageEditions} language editions, " +
+            "$prefix $what: Story-worthy, ${lookup.source.notability.languageEditions} language editions, " +
                 "${lookup.source.notability.words} words"
-        SourceLookup.NotStoryWorthy -> "Passing $what: no Story (no article, or too thin)"
-        is SourceLookup.Unavailable -> "Passing $what: Source lookup failed (${lookup.reason}), will retry"
+        SourceLookup.NotStoryWorthy -> "$prefix $what: no Story (no article, or too thin)"
+        is SourceLookup.Unavailable -> "$prefix $what: Source lookup failed (${lookup.reason}), will retry"
     }
 }
 

@@ -13,12 +13,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -31,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.drivepal.core.Talkativeness
 import app.drivepal.core.TripState
 import java.util.Locale
 
@@ -64,6 +67,17 @@ private fun TripScreen(ui: TripUi) {
     ) {
         Text("DrivePal", style = MaterialTheme.typography.headlineMedium)
         Text(describe(ui), style = MaterialTheme.typography.bodyLarge)
+        val settings = remember { Settings(context) }
+        var talkativeness by remember { mutableStateOf(settings.talkativeness) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Talkativeness.entries.forEach { choice ->
+                FilterChip(
+                    selected = talkativeness == choice,
+                    onClick = { talkativeness = choice; settings.talkativeness = choice },
+                    label = { Text(choice.name) },
+                )
+            }
+        }
         Text(
             "Speed: ${ui.speedKmh?.let { String.format(Locale.US, "%.0f km/h", it) } ?: "-"}",
             style = MaterialTheme.typography.titleLarge,

@@ -18,10 +18,12 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import java.io.File
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import app.drivepal.core.ChatClient
 import app.drivepal.core.ChatSettings
+import app.drivepal.core.FileToldStore
 import app.drivepal.core.Fix
 import app.drivepal.core.Position
 import app.drivepal.core.SourceLibrary
@@ -121,7 +123,12 @@ class TripService : Service() {
             onPlayPressed = ::onPlayPressed,
         )
         narrator = voice
-        exploration = Exploration(finder, sources, writer, voice)
+        val settings = Settings(applicationContext)
+        exploration = Exploration(
+            finder, sources, writer, voice,
+            store = FileToldStore(File(filesDir, "told.json")),
+            talkativeness = { settings.talkativeness },
+        )
         shownState = TripState.Driving
         TripSession.update { TripUi(running = true, state = TripState.Driving) }
         handler.postDelayed(tick, TICK_MILLIS)
@@ -136,7 +143,7 @@ class TripService : Service() {
             it.copy(speedKmh = speedKmh)
         }
         applyMonitor(current.withFix(Fix(fixMillis, speedKmh)))
-        exploration?.onPosition(Position(location.latitude, location.longitude))
+        exploration?.onPosition(Position(location.latitude, location.longitude), standstill = monitor?.state == TripState.Standstill)
     }
 
     private fun answerStillOnTheRoad() {
@@ -154,6 +161,7 @@ class TripService : Service() {
     }
 
     private fun noteOutcome(utterance: Utterance, outcome: StoryOutcome) {
+        exploration?.onOutcome(utterance, outcome)
         TripSession.update { ui -> ui.copy(narration = (listOf("${outcome.name}: ${utterance.title}") + ui.narration).take(MAX_NARRATION)) }
     }
 

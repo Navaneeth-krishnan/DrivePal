@@ -17,11 +17,17 @@ fun interface PhotonClient {
 }
 
 /** Where the driver is, at the Area levels that get an entry Story. */
-data class Area(val country: String, val province: String?)
+data class Area(
+    val country: String,
+    val province: String?,
+    /** The province's own Wikipedia page ("nl:Zuid-Holland") and Wikidata item, when Nominatim says: the exact Source. */
+    val provinceWikipediaTag: String? = null,
+    val provinceWikidataId: String? = null,
+)
 
 sealed interface AreaEvent {
     data class EnteredCountry(val name: String) : AreaEvent
-    data class EnteredProvince(val name: String) : AreaEvent
+    data class EnteredProvince(val name: String, val wikipediaTag: String? = null, val wikidataId: String? = null) : AreaEvent
 }
 
 /** [problem] says why the Area could not be worked out this time, if that is so. */
@@ -75,7 +81,7 @@ data class AreaTracker private constructor(
         val country = if (before?.country != after.country) AreaEvent.EnteredCountry(after.country) else null
         val province = after.province
             ?.takeIf { before?.country != after.country || before.province != it }
-            ?.let { AreaEvent.EnteredProvince(it) }
+            ?.let { AreaEvent.EnteredProvince(it, after.provinceWikipediaTag, after.provinceWikidataId) }
         return listOfNotNull(country, province)
     }
 
@@ -93,8 +99,18 @@ internal fun parseArea(json: String): Area? {
     val address = Json.parseToJsonElement(json).jsonObject["address"]?.jsonObject ?: return null
     fun part(key: String) = address[key]?.jsonPrimitive?.contentOrNull
     val country = part("country") ?: return null
-    return Area(country, province = part("state") ?: part("province") ?: part("region"))
+    // At zoom 5 the answer is the province itself, so its extra tags (Wikipedia, Wikidata) are the province's.
+    val tags = Json.parseToJsonElement(json).jsonObject["extratags"]?.jsonObject
+    val isProvince = Json.parseToJsonElement(json).jsonObject["addresstype"]?.jsonPrimitive?.contentOrNull in PROVINCE_TYPES
+    return Area(
+        country = country,
+        province = part("state") ?: part("province") ?: part("region"),
+        provinceWikipediaTag = tags?.takeIf { isProvince }?.get("wikipedia")?.jsonPrimitive?.contentOrNull,
+        provinceWikidataId = tags?.takeIf { isProvince }?.get("wikidata")?.jsonPrimitive?.contentOrNull,
+    )
 }
+
+private val PROVINCE_TYPES = setOf("state", "province", "region")
 
 /** Reads a Photon reverse-geocoding response (GeoJSON). Photon calls the Province "state". */
 internal fun parsePhotonArea(json: String): Area? {

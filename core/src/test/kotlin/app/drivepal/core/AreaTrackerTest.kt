@@ -186,6 +186,22 @@ class AreaTrackerTest {
         assertEquals("HTTP 503 from nominatim.openstreetmap.org; Photon: HTTP 429 from photon.komoot.io", first.problem)
         assertEquals(2, requests)
     }
+
+    @Test
+    fun `a real Nominatim answer carries the province's own Wikipedia and Wikidata pages`() {
+        val recorded = AreaTrackerTest::class.java.getResource("/real/nominatim-reverse-extratags.json")!!.readText()
+        val tracker = AreaTracker.starting(nominatim = { recorded }, clockMillis = { 0 })
+
+        val events = tracker.withPosition(Position(51.89, 4.64)).events
+
+        assertEquals(
+            listOf<AreaEvent>(
+                AreaEvent.EnteredCountry("Netherlands"),
+                AreaEvent.EnteredProvince("South Holland", wikipediaTag = "nl:Zuid-Holland", wikidataId = "Q694"),
+            ),
+            events,
+        )
+    }
 }
 
 /** Shaped like a real Nominatim `reverse?format=jsonv2&addressdetails=1&zoom=5` response. */
