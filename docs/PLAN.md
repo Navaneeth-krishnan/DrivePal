@@ -45,7 +45,7 @@
 - **Relevant:** a Town or Landmark Story is relevant within about 3 km, ahead or behind. A Story that starts after the subject is passed begins with a lead-in ("back there, behind us…"). Area Stories and Interludes are relevant while you're inside the Area. A Story that is no longer relevant is dropped.
 - **Told:** a Story is Told when it plays to the end or is Skipped. A Told Story isn't repeated for about 30 days, across Trips.
 - **Interrupted:** a Story cut off by navigation or a call resumes once the audio is free, if it's still Relevant. Otherwise it can come back on a later Trip.
-- **Skipped** Stories are recorded, for learning your taste later.
+- **Skipped** Stories count as Told for the memory. The distinction is kept in the Trip log (M6), which is where "learning your taste" will read it from.
 
 **Trips**
 - **Start and stop:** manual, with a Start/Stop button and a persistent notification.
@@ -55,17 +55,19 @@
 ### Architecture
 
 ```
-TripService (foreground service, location)
-  ├─ LocationTracker      Android LocationManager (GPS): position, speed, heading every ~5 s
-  ├─ MotionState          driving / Standstill / Still-on-the-road check
-  ├─ AreaTracker          entering a Country or Province (Nominatim, rate-limited and cached)
-  ├─ PassingDetector      Towns and Landmarks within ~3 km (Overpass, one query per area tile, cached)
-  ├─ SourceLibrary        Wikipedia extracts and sections, story-worthiness and Notability (cached)
-  ├─ StoryPicker          priority, Talkativeness gap, Relevance, Interludes, Told memory
-  ├─ StoryWriter          an AI model writes a Story from the Source (provider can be swapped)
-  ├─ Narrator             text-to-speech, lowers your music, Media3 session (skip, play, check answer)
-  └─ StoryMemory (Room)   Trips, Told / Skipped / Interrupted Stories, Sources
-UI (Jetpack Compose): Start/Stop Trip, the Story playing now, trip log (with Sources), settings
+TripService (foreground service: GPS, the Trip, the notification)
+  ├─ TripMonitor          driving / Standstill / the Still-on-the-road check (pure, in :core)
+  ├─ Exploration          the threads and Android plumbing; hands the decisions to the director
+  │    ├─ PassingDetector   Towns and Landmarks within ~3 km, never the ones already around at the start
+  │    ├─ AreaTracker       entering a Country or Province (Nominatim, with Photon behind it)
+  │    ├─ SubjectFinder     places per map tile (Overpass, with Wikipedia geosearch behind it)
+  │    ├─ SourceLibrary     Wikipedia articles, story-worthiness, Notability (bounded cache)
+  │    ├─ StoryDirector     the pool, the Areas, Interludes, Told memory and StoryScheduler (pure, in :core)
+  │    └─ StoryWriter       an AI model writes a Story from the Source (ChatClient, any OpenAI-compatible server)
+  └─ Narrator             text-to-speech, audio focus, MediaSession and a silent track so the media keys arrive;
+                          the decisions are NarrationController's (pure, in :core)
+ToldMemory (FileToldStore, a small JSON file) remembers what was told for 30 days
+UI (Jetpack Compose): Start/Stop Trip, Talkativeness, the Stories and what happened to them; M6 adds the trip log and settings
 ```
 
 - **No Google Play Services** ([ADR 0001](adr/0001-no-google-play-services.md)).
@@ -110,9 +112,9 @@ There is one `StoryWriter` interface, with one client for the **OpenAI-compatibl
 | **OpenAI API** | Paid (separate from a ChatGPT subscription) | Comparing story quality |
 | **Claude** (Anthropic Java SDK) | Paid, about $0.01–0.03 per Story | Can be added later as a second `StoryWriter` implementation |
 
-- **API keys:** stored in `local.properties` (not committed to git) or entered in settings, and stored on the device. That's fine for personal use, but no key may be in the app if it is ever published.
-- **Plain HTTP:** only allowed for `10.0.2.2` and LAN addresses (for Ollama), through a debug-only network security config.
-- **Timeouts:** a Story must arrive while it's still Relevant. If the model is too slow, fall back to the Wikipedia summary.
+- **API keys:** today a Gradle property, `drivepal.aiKey`, kept in `~/.gradle/gradle.properties` (never in the repository); it ends up inside the APK, which is fine for a personal build and not for a published one. M6 moves it into the app's settings, encrypted with the Android Keystore. The key is sent only over `https`, and the AI provider gets a plain User-Agent without the optional contact.
+- **Plain HTTP:** a debug-only network security config allows it for `10.0.2.2` and `localhost` only (a local Ollama, as the emulator sees it). Release builds allow none. Android 17 also asks for a local network permission, which the app requests only when the AI server is on the local network.
+- **Failures and timeouts:** the AI call has a 90 s read timeout. On an error, a reply with nothing in it, or a failed check (twice), the Story falls back to the start of the article or section, and the screen says why. A reply cut off by the length limit is trimmed back to its last whole sentence. There is no deadline tied to Relevance: a Story that is no longer relevant when its turn comes is dropped. A fallback in a language with no installed voice is dropped, not read in English.
 - **Quality check:** for each test Story, does every factual claim appear in the Source? Done by hand on a handful of real Stories (see below).
 
 #### Model comparison (2026-11-20)
@@ -134,7 +136,7 @@ Decision: use **Gemini 3.5 Flash-Lite** for real drives and keep local Ollama fo
 
 - **Unit tests, written first:** bearing and distance geometry, Passing and Relevance, Standstill and the check timer, tile and caching logic, story-worthiness and Notability, priority and Talkativeness gaps, Interlude doubling, Told memory, prompt building, and parsing of Overpass, Nominatim and Wikipedia responses (from recorded JSON).
 - **Fakes** stand in for OpenStreetMap, Wikipedia and the AI, so tests are offline and free.
-- **Integration:** GPX route replay in the emulator, with 2–3 sample routes in the repo (motorway, through a town, a parked stop), against local Ollama.
+- **Integration:** debug builds can drive a test route by feeding fake GPS (`DebugDrive`, with real roads from OSRM in `DebugRoutes`: Kinderdijk, Kozhencherry and the E19 across the Dutch-Belgian border, parking at the end), and `scripts/replay_route.py` does the same on the emulator.
 - **Final check:** a real drive, as the v1 milestone.
 
 ### Risks
@@ -167,3 +169,10 @@ Decision: use **Gemini 3.5 Flash-Lite** for real drives and keep local Ollama fo
 11. **Other languages:** narrate in another language, or bilingual.
 12. **Trip recap:** an end-of-drive summary or map of the Stories you heard.
 13. **Public release:** a backend proxy for API keys, accounts, Play Store compliance (background location policy, driver-distraction rules), and OSM attribution in the app.
+
+
+## Review of M3 to M5b (2026-11-21): what changed
+
+An independent review found two HIGH problems, both fixed: Nominatim was never asked for `extratags`, so provinces still fell back to guessing their article from the name (the M5a claim was untrue in production, and its test passed only because the fixture had been recorded with extratags; the URLs now live in `:core` with tests), and Areas were keyed by name only, so Limburg in the Netherlands and Limburg in Belgium shared one article and one Told entry (they are now keyed by country and name, and the logic moved out of `Exploration` into the tested `StoryDirector`). Also fixed: a refused or delayed audio request can no longer wedge the narration, a late grant is handed back, an answered question is no longer asked, a reply cut off by the length limit is trimmed, the grounding checks look at the text the model was actually given, names and titles from the map or Wikipedia are kept out of the instructions (the source is fenced as data) and driving instructions are never spoken, switching between Nominatim and Photon is not a border crossing, a Told file that cannot be saved no longer crashes, a wrong phone clock cannot make a Story "told forever", caches are bounded and an Area that has been left is forgotten.
+
+Not changed, and known: a country's article is guessed as `en:<name>` ("Ireland" is the island); a place within 3 km of where the Trip started stays silent for the whole Trip, even if you come back; and Wikipedia text can still be read as a fallback article without the driving-instruction check.

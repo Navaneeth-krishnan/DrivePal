@@ -205,6 +205,44 @@ class AreaTrackerTest {
 
         assertEquals(Area("Belgium", "Antwerp"), update.area)
     }
+
+    private val photonFlanders = """{"features":[{"properties":{"country":"Belgium","state":"Flanders"}}]}"""
+
+    @Test
+    fun `Photon naming the area differently from Nominatim is not a border crossing`() {
+        var nominatimIsDown = false
+        val tracker = AreaTracker.starting(
+            nominatim = { if (nominatimIsDown) throw java.io.IOException("down") else ANTWERP },
+            clockMillis = { 0 },
+            fallback = { photonFlanders },
+        )
+        val twoKilometresOn = Position(52.0, 4.05)
+        val fourKilometresOn = Position(52.0, 4.10)
+
+        val atTheStart = tracker.withPosition(start)
+        nominatimIsDown = true
+        val photonAnswers = atTheStart.tracker.withPosition(twoKilometresOn)
+        nominatimIsDown = false
+        val nominatimBack = photonAnswers.tracker.withPosition(fourKilometresOn)
+
+        assertEquals(emptyList<AreaEvent>(), photonAnswers.events)
+        assertEquals(Area("Belgium", "Flanders"), photonAnswers.area)
+        assertEquals(emptyList<AreaEvent>(), nominatimBack.events)
+        assertEquals(Area("Belgium", "Antwerp"), nominatimBack.area)
+    }
+
+    @Test
+    fun `learning the province after only the country was known is not an entry`() {
+        val tracker = AreaTracker.starting(
+            nominatim = { position -> if (position.longitude < 4.03) """{"address":{"country":"Belgium"}}""" else ANTWERP },
+            clockMillis = { 0 },
+        )
+
+        val update = tracker.withPosition(start).tracker.withPosition(threeAndAHalfKilometresOn)
+
+        assertEquals(emptyList<AreaEvent>(), update.events)
+        assertEquals(Area("Belgium", "Antwerp"), update.area)
+    }
 }
 
 /** Shaped like a real Nominatim `reverse?format=jsonv2&addressdetails=1&zoom=5` response. */

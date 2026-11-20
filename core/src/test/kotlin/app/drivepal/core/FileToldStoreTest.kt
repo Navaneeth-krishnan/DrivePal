@@ -31,6 +31,18 @@ class FileToldStoreTest {
     }
 
     @Test
+    fun `a file that cannot be replaced loses a little memory but never stops the drive`() {
+        val directory = Files.createTempDirectory("drivepal")
+        val file = directory.resolve("told.json").toFile()
+        file.mkdir()                                  // a folder where the file should be: the rename cannot succeed
+        File(file, "stuck").writeText("x")
+
+        FileToldStore(file).save(mapOf("node/1" to 1L)) // must not throw
+
+        assertEquals(emptyMap(), FileToldStore(file).load())
+    }
+
+    @Test
     fun `saving leaves one complete file and no temporary leftovers`() {
         val file = newFile()
 

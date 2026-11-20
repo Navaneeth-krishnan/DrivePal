@@ -1,6 +1,7 @@
 package app.drivepal.core
 
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -26,10 +27,13 @@ class FileToldStore(private val file: File) : ToldStore {
         val json = buildJsonObject { entries.forEach { (key, toldAt) -> put(key, toldAt) } }.toString()
         val temporary = File(file.parentFile, "${file.name}.tmp")
         try {
-            temporary.writeText(json)
+            FileOutputStream(temporary).use { out ->
+                out.write(json.toByteArray(Charsets.UTF_8))
+                out.fd.sync() // on disk before it replaces the old file
+            }
             if (!temporary.renameTo(file)) {
                 file.delete()
-                check(temporary.renameTo(file)) { "Could not save ${file.name}" }
+                if (!temporary.renameTo(file)) temporary.delete()
             }
         } catch (e: IOException) {
             temporary.delete() // not being able to remember is a small loss; never stop a drive for it

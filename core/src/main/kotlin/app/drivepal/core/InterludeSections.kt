@@ -14,9 +14,14 @@ object InterludeSections {
     private val BLANK_LINES = Regex("\\n{3,}")
     private const val MIN_WORDS = 80
 
+    // The sections of a link list or a footnote, in the languages the articles are likely to be in.
     private val BOILERPLATE = setOf(
         "see also", "references", "notes", "footnotes", "citations", "external links", "further reading",
         "bibliography", "sources", "gallery", "explanatory notes", "works cited", "general references",
+        "zie ook", "externe links", "bronnen", "noten", "voetnoten", "literatuur", "weblinks", "referenties",
+        "einzelnachweise", "siehe auch", "literatur", "anmerkungen", "quellen", "belege",
+        "voir aussi", "notes et références", "liens externes", "bibliographie", "références",
+        "véase también", "referencias", "enlaces externos", "notas", "bibliografía",
     )
 
     fun of(article: String): List<Section> {
@@ -31,7 +36,4 @@ object InterludeSections {
             if (title.lowercase() in BOILERPLATE || text.split(Regex("\\s+")).count { it.isNotEmpty() } < MIN_WORDS) null else Section(title, text)
         }
     }
-
-    /** The first section, in article order, that has not been told yet; null when all have. */
-    fun next(article: String, isTold: (Section) -> Boolean): Section? = of(article).firstOrNull { !isTold(it) }
 }

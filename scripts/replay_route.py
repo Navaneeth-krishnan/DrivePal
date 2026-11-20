@@ -2,7 +2,7 @@
 """Replays a drive into the running Android emulator, in real time, one GPS fix every 5 s.
 
 Usage: replay_route.py SCENARIO
-Scenarios are lists of (seconds, km/h) legs, driven from a start point on the A13 near Rotterdam.
+Each scenario has its own start point and heading, then a list of (seconds, km/h) legs.
 """
 import math
 import subprocess

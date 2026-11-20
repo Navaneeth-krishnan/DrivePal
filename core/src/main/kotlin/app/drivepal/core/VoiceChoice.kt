@@ -12,7 +12,17 @@ object VoiceChoice {
         return sorted.firstOrNull { speaks(it, language) } ?: sorted.firstOrNull { speaks(it, "en") }
     }
 
+    /** True if some installed voice speaks [language] itself (not merely the English stand-in [pick] falls back to). */
+    fun hasVoice(language: String, installedVoices: Set<String>): Boolean = installedVoices.any { speaks(it, language) }
+
     // A code with its own hyphen ("zh-min-nan") must match exactly: it is not the language its first part names.
     private fun speaks(voice: String, language: String): Boolean =
-        if ('-' in language) voice.equals(language, ignoreCase = true) else voice.substringBefore('-').equals(language, ignoreCase = true)
+        if ('-' in language) {
+            voice.equals(language, ignoreCase = true)
+        } else {
+            voice.substringBefore('-').lowercase() in (SAME_LANGUAGE[language.lowercase()] ?: setOf(language.lowercase()))
+        }
+
+    // Wikipedia's "no" is the Norwegian a phone calls Bokmal (nb) or Nynorsk (nn).
+    private val SAME_LANGUAGE = mapOf("no" to setOf("no", "nb", "nn"))
 }

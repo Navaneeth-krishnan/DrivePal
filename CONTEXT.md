@@ -15,7 +15,7 @@ How big an Area is: Country, Province or Town. Each level gets its own kind of s
 _Avoid_: Tier, scale
 
 **Province**:
-The first level of Area below a Country (a province, state or region, depending on the country).
+The first level of Area below a Country: a province, state or region, whichever the map service names at that level (in Belgium it may be the region, Flanders, rather than the province, Antwerp).
 _Avoid_: State, region
 
 **Town**:

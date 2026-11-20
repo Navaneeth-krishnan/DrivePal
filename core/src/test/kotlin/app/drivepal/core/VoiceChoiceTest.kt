@@ -27,6 +27,18 @@ class VoiceChoiceTest {
     }
 
     @Test
+    fun `Wikipedia's Norwegian is read by an installed Bokmal voice`() {
+        assertEquals("nb-NO", VoiceChoice.pick(language = "no", installedVoices = setOf("en-US", "nb-NO")))
+    }
+
+    @Test
+    fun `it is known whether a language has a voice of its own, as opposed to the English stand-in`() {
+        assertEquals(true, VoiceChoice.hasVoice("nl", setOf("en-US", "nl-NL")))
+        assertEquals(false, VoiceChoice.hasVoice("ml", setOf("en-US", "nl-NL")))
+        assertEquals(true, VoiceChoice.hasVoice("no", setOf("nb-NO")))
+    }
+
+    @Test
     fun `with no English voice either there is nothing to choose`() {
         assertNull(VoiceChoice.pick(language = "de", installedVoices = setOf("nl-NL")))
     }

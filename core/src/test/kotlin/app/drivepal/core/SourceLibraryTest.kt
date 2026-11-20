@@ -87,6 +87,25 @@ class SourceLibraryTest {
     }
 
     @Test
+    fun `the memory of past lookups is bounded, so a long drive cannot fill the phone`() {
+        var fetches = 0
+        val library = SourceLibrary(
+            wikipedia = { _, title -> fetches++; articleJson(title, words = 200, wikidataId = "Q111") },
+            wikidata = { error("not needed") },
+            clockMillis = { 0 },
+        )
+        fun place(n: Int) = castle.copy(id = "node/$n", wikipediaTag = "nl:Place $n")
+
+        library.sourceFor(place(0))
+        (1..400).forEach { library.sourceFor(place(it)) }
+        val fetchesBefore = fetches
+        library.sourceFor(place(0)) // long forgotten: fetched again
+        library.sourceFor(place(400)) // just looked up: still remembered
+
+        assertEquals(fetchesBefore + 1, fetches)
+    }
+
+    @Test
     fun `a failed lookup is not repeated for thirty seconds and then tried again`() {
         var nowMillis = 0L
         var wikipediaIsDown = true

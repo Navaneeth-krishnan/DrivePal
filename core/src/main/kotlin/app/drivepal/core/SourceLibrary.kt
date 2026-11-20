@@ -1,5 +1,6 @@
 package app.drivepal.core
 
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 /** Fetches a Wikipedia article as JSON: `action=query&prop=extracts|pageprops|langlinks`. The network boundary. */
@@ -43,7 +44,12 @@ class SourceLibrary(
     private val wikidata: WikidataClient,
     private val clockMillis: () -> Long,
 ) {
-    private val answers = ConcurrentHashMap<String, SourceLookup>()
+    // Bounded, least recently used first out: a long drive must not fill the phone with article text.
+    private val answers: MutableMap<String, SourceLookup> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, SourceLookup>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SourceLookup>) = size > MAX_REMEMBERED
+        },
+    )
     private val failures = ConcurrentHashMap<String, Pair<Long, SourceLookup.Unavailable>>()
 
     fun sourceFor(subject: Subject): SourceLookup {
@@ -105,6 +111,7 @@ class SourceLibrary(
 
     private companion object {
         const val MIN_WORDS = 150
+        const val MAX_REMEMBERED = 300
         const val MAX_SOURCE_CHARS = 20_000
         const val MAX_AREA_SOURCE_CHARS = 150_000
         const val MAX_CANDIDATES = 3

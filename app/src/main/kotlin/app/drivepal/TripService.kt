@@ -170,6 +170,9 @@ class TripService : Service() {
             narrator?.ask(Utterance("question", QUESTION, "en", story = false))
         }
         narrator?.setQuestionPending(next.state == TripState.AskingStillOnTheRoad)
+        if (monitor?.state == TripState.AskingStillOnTheRoad && next.state != TripState.AskingStillOnTheRoad) {
+            narrator?.cancelQuestion() // answered, or the driver drove off: the question must not be spoken now
+        }
         monitor = next
         TripSession.update { it.copy(state = next.state) }
         if (next.state == TripState.Ended) {

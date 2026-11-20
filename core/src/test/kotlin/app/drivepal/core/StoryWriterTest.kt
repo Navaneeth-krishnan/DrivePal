@@ -179,6 +179,74 @@ class StoryWriterTest {
             story,
         )
     }
+
+    private fun truncatedAnswer(text: String) = buildJsonObject {
+        put("choices", buildJsonArray {
+            add(buildJsonObject {
+                put("index", 0)
+                put("message", buildJsonObject { put("role", "assistant"); put("content", text) })
+                put("finish_reason", "length")
+            })
+        })
+    }.toString()
+
+    @Test
+    fun `a reply that was cut off is trimmed back to its last whole sentence`() {
+        val story = writerAnswering(truncatedAnswer("Kinderdijk has windmills. They drain the polder. The oldest was bui")).write(brief)
+
+        assertEquals(StoryResult.Written("Kinderdijk has windmills. They drain the polder."), story)
+    }
+
+    @Test
+    fun `a reply cut off before its first sentence ended falls back to the article`() {
+        val story = writerAnswering(truncatedAnswer("Kinderdijk is a village in the Nether")).write(brief)
+
+        assertEquals(StoryResult.Fallback(text = source.text, language = "en", reason = "The story was cut off before its first sentence ended"), story)
+    }
+
+    @Test
+    fun `numbers are checked against the text the model was actually given, not the whole article`() {
+        val long = source.copy(text = List(2_000) { "plain$it" }.joinToString(" ") + " It was built in 1743.")
+        val sent = mutableListOf<String>()
+        val writer = writerAnswering(
+            "The mill was built in 1743.",
+            "The mill drains the polder.",
+            sent = sent,
+        )
+
+        val story = writer.write(brief.copy(source = long))
+
+        assertEquals(StoryResult.Written("The mill drains the polder."), story)
+        assertTrue("1743" in sent[1])
+    }
+
+    @Test
+    fun `driving instructions are never spoken as part of a story`() {
+        val sent = mutableListOf<String>()
+        val writer = writerAnswering(
+            "Turn left at the windmill, it was built around 1740.",
+            "The windmills date from 1740.",
+            sent = sent,
+        )
+
+        val story = writer.write(brief)
+
+        assertEquals(StoryResult.Written("The windmills date from 1740."), story)
+        assertTrue("driving instructions" in sent[1])
+    }
+
+    @Test
+    fun `if the retry still tells the driver what to do the article itself is told instead`() {
+        val story = writerAnswering(
+            "Pull over now and look at the mill.",
+            "Slow down and enjoy the mill.",
+        ).write(brief)
+
+        assertEquals(
+            StoryResult.Fallback(text = source.text, language = "en", reason = "The story contained driving instructions"),
+            story,
+        )
+    }
 }
 
 private fun chatAnswer(text: String): String = buildJsonObject {

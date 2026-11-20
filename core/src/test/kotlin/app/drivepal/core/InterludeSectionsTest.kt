@@ -3,7 +3,6 @@ package app.drivepal.core
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 
 class InterludeSectionsTest {
 
@@ -38,25 +37,19 @@ class InterludeSectionsTest {
     }
 
     @Test
-    fun `sections already told are not offered again, and when all are told there is nothing left`() {
-        val told = mutableSetOf<String>()
-        val offered = mutableListOf<String>()
-
-        while (true) {
-            val next = InterludeSections.next(southHolland) { it.title in told } ?: break
-            offered += next.title
-            told += next.title
-        }
-
-        assertEquals(listOf("History", "Geography", "Economy"), offered)
-        assertNull(InterludeSections.next(southHolland) { true })
-    }
-
-    @Test
     fun `boilerplate sections are skipped however long they are`() {
         val long = List(200) { "word$it" }.joinToString(" ")
         val article = "Lead text.\n\n== References ==\n$long\n\n== Further reading ==\n$long\n\n== Culture ==\n$long"
 
         assertEquals(listOf("Culture"), InterludeSections.of(article).map { it.title })
+    }
+
+    @Test
+    fun `boilerplate sections in Dutch, German, French and Spanish are skipped too`() {
+        val long = List(200) { "woord$it" }.joinToString(" ")
+        val article = "Inleiding.\n\n== Zie ook ==\n$long\n\n== Externe links ==\n$long\n\n== Literatuur ==\n$long\n\n" +
+            "== Einzelnachweise ==\n$long\n\n== Voir aussi ==\n$long\n\n== Véase también ==\n$long\n\n== Geschiedenis ==\n$long"
+
+        assertEquals(listOf("Geschiedenis"), InterludeSections.of(article).map { it.title })
     }
 }

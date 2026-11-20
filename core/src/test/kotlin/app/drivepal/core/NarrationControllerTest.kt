@@ -2,6 +2,7 @@ package app.drivepal.core
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NarrationControllerTest {
@@ -202,6 +203,121 @@ class NarrationControllerTest {
         val finished = interrupted.run(NarrationEvent.FocusGained, NarrationEvent.SpeechDone("castle#2")).first
 
         assertEquals(listOf(false, true, true, false), listOf(idle, telling, interrupted, finished).map { it.isActive })
+    }
+
+    @Test
+    fun `skipping a story that is still waiting for the audio gives the pending request back`() {
+        val (_, commands) = controller().run(
+            NarrationEvent.StoryReady(castle),
+            NarrationEvent.FocusLost(permanent = false), // the audio was only promised for later
+            NarrationEvent.Skip,
+        )
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("castle#1", castle.text),
+                NarrationCommand.StopSpeaking, outcome(castle, StoryOutcome.Skipped), NarrationCommand.AbandonFocus,
+            ),
+            commands,
+        )
+    }
+
+    @Test
+    fun `audio that arrives when nothing is waiting is handed straight back`() {
+        val (_, commands) = controller().run(NarrationEvent.FocusGained)
+
+        assertEquals(listOf<NarrationCommand>(NarrationCommand.AbandonFocus), commands)
+    }
+
+    @Test
+    fun `a refused audio request ends the story as Interrupted and drops the ones waiting, instead of stalling`() {
+        val (controller, commands) = controller().run(
+            NarrationEvent.StoryReady(castle),
+            NarrationEvent.StoryReady(mill),
+            NarrationEvent.FocusDenied,
+        )
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("castle#1", castle.text),
+                outcome(castle, StoryOutcome.Interrupted), outcome(mill, StoryOutcome.Dropped),
+            ),
+            commands,
+        )
+        assertFalse(controller.isActive)
+    }
+
+    @Test
+    fun `a refused audio request for the question just leaves it unspoken`() {
+        val (controller, commands) = controller().run(NarrationEvent.QuestionReady(question), NarrationEvent.FocusDenied)
+
+        assertEquals(listOf(NarrationCommand.RequestFocus, speak("question#1", question.text)), commands)
+        assertFalse(controller.isActive)
+    }
+
+    @Test
+    fun `another app taking the audio for good while a story waits to resume interrupts it`() {
+        val (_, commands) = controller().run(
+            NarrationEvent.StoryReady(castle),
+            NarrationEvent.FocusLost(permanent = false),
+            NarrationEvent.FocusLost(permanent = true),
+        )
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("castle#1", castle.text),
+                NarrationCommand.StopSpeaking, outcome(castle, StoryOutcome.Interrupted),
+            ),
+            commands,
+        )
+    }
+
+    @Test
+    fun `a question that was answered is no longer asked`() {
+        val (_, commands) = controller().run(
+            NarrationEvent.StoryReady(castle),
+            NarrationEvent.QuestionReady(question),
+            NarrationEvent.QuestionCancelled,
+            NarrationEvent.SpeechDone("castle#1"),
+        )
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("castle#1", castle.text),
+                outcome(castle, StoryOutcome.Told), NarrationCommand.AbandonFocus,
+            ),
+            commands,
+        )
+    }
+
+    @Test
+    fun `answering while the question is being spoken stops it`() {
+        val (_, commands) = controller().run(NarrationEvent.QuestionReady(question), NarrationEvent.QuestionCancelled)
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("question#1", question.text),
+                NarrationCommand.StopSpeaking, NarrationCommand.AbandonFocus,
+            ),
+            commands,
+        )
+    }
+
+    @Test
+    fun `a story in a language no installed voice speaks is dropped, not counted as heard`() {
+        val (_, commands) = controller().run(
+            NarrationEvent.StoryReady(castle),
+            NarrationEvent.StoryReady(mill),
+            NarrationEvent.SpeechUnavailable("castle#1"),
+        )
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("castle#1", castle.text),
+                outcome(castle, StoryOutcome.Dropped), speak("mill#2", mill.text),
+            ),
+            commands,
+        )
     }
 
     @Test

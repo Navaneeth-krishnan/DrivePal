@@ -3,6 +3,7 @@ package app.drivepal
 import android.os.SystemClock
 import app.drivepal.core.BoundingBox
 import app.drivepal.core.ChatTransport
+import app.drivepal.core.Endpoints
 import app.drivepal.core.NominatimClient
 import app.drivepal.core.OverpassClient
 import app.drivepal.core.PhotonClient
@@ -54,6 +55,7 @@ private fun request(
     contentType: String = FORM,
     headers: Map<String, String> = emptyMap(),
     readTimeoutMillis: Int = READ_TIMEOUT_MILLIS,
+    userAgent: String = USER_AGENT,
 ): String {
     val host = URL(url).host
     val now = SystemClock.elapsedRealtime()
@@ -66,7 +68,7 @@ private fun request(
         connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
         connection.readTimeout = readTimeoutMillis
         connection.instanceFollowRedirects = false
-        connection.setRequestProperty("User-Agent", USER_AGENT)
+        connection.setRequestProperty("User-Agent", userAgent)
         headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
         if (body != null) {
             connection.requestMethod = "POST"
@@ -119,26 +121,17 @@ object OverpassHttp : OverpassClient {
 }
 
 object NominatimHttp : NominatimClient {
-    // Only the province is needed (zoom=5), so the position is blurred to about a kilometre.
-    override fun reverse(position: Position): String = request(
-        "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=5&addressdetails=1&accept-language=en" +
-            "&lat=${degrees(position.latitude, decimals = 2)}&lon=${degrees(position.longitude, decimals = 2)}",
-    )
+    override fun reverse(position: Position): String = request(Endpoints.nominatimReverse(position))
 }
 
 object PhotonHttp : PhotonClient {
-    // The fallback for Nominatim. The same blurring to about a kilometre: only the province is needed.
-    override fun reverse(position: Position): String = request(
-        "https://photon.komoot.io/reverse?lang=en&lat=${degrees(position.latitude, decimals = 2)}&lon=${degrees(position.longitude, decimals = 2)}",
-    )
+    // The fallback for Nominatim.
+    override fun reverse(position: Position): String = request(Endpoints.photonReverse(position))
 }
 
 object WikipediaGeoSearchHttp : WikipediaGeoSearchClient {
     // The fallback for Overpass: the English Wikipedia articles about places near the middle of a map tile.
-    override fun search(center: Position, radiusMeters: Int): String = request(
-        "https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gslimit=100&format=json&formatversion=2" +
-            "&gscoord=${degrees(center.latitude)}%7C${degrees(center.longitude)}&gsradius=$radiusMeters",
-    )
+    override fun search(center: Position, radiusMeters: Int): String = request(Endpoints.wikipediaGeoSearch(center, radiusMeters))
 }
 
 object WikipediaHttp : WikipediaClient {
@@ -167,11 +160,17 @@ object WikidataHttp : WikidataClient {
 object AiHttp : ChatTransport {
     private const val AI_READ_TIMEOUT_MILLIS = 90_000 // a local model's first answer can take 15 s or more
 
-    override fun post(requestJson: String): String = request(
-        url = BuildConfig.AI_BASE_URL.trimEnd('/') + "/chat/completions",
-        body = requestJson,
-        contentType = "application/json",
-        headers = if (BuildConfig.AI_API_KEY.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer ${BuildConfig.AI_API_KEY}"),
-        readTimeoutMillis = AI_READ_TIMEOUT_MILLIS,
-    )
+    override fun post(requestJson: String): String {
+        val url = BuildConfig.AI_BASE_URL.trimEnd('/') + "/chat/completions"
+        // The key goes only over an encrypted connection; a local Ollama over plain HTTP needs none.
+        val key = BuildConfig.AI_API_KEY.takeIf { it.isNotBlank() && url.startsWith("https://") }
+        return request(
+            url = url,
+            body = requestJson,
+            contentType = "application/json",
+            headers = if (key == null) emptyMap() else mapOf("Authorization" to "Bearer $key"),
+            readTimeoutMillis = AI_READ_TIMEOUT_MILLIS,
+            userAgent = "DrivePal/0.1", // the AI provider has no use for the optional contact
+        )
+    }
 }

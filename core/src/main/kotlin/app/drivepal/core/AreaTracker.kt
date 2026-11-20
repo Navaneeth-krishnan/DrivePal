@@ -54,7 +54,13 @@ data class AreaTracker private constructor(
     private val area: Area?,
     private val failedAtMillis: Long?,
     private val fallback: PhotonClient?,
+    /** Which service gave the current [area]. Two services name Areas differently, so a switch is not a crossing. */
+    private val answeredBy: Provider?,
 ) {
+    private enum class Provider { Nominatim, Photon }
+
+    private class Lookup(val area: Area?, val problem: String?, val provider: Provider?)
+
     fun withPosition(position: Position): AreaUpdate {
         if (askedAt != null && distanceMeters(askedAt, position) < ASK_AGAIN_AFTER_METERS) {
             return AreaUpdate(this, emptyList(), area = area)
@@ -62,18 +68,24 @@ data class AreaTracker private constructor(
         if (failedAtMillis != null && clockMillis() - failedAtMillis < RETRY_AFTER_MILLIS) {
             return AreaUpdate(this, emptyList(), area = area)
         }
-        val (found, problem) = lookUp(position)
-        if (found == null) return AreaUpdate(copy(failedAtMillis = clockMillis()), emptyList(), problem, area)
-        return AreaUpdate(copy(askedAt = position, area = found, failedAtMillis = null), eventsFor(area, found), area = found)
+        val lookup = lookUp(position)
+        val found = lookup.area ?: return AreaUpdate(copy(failedAtMillis = clockMillis()), emptyList(), lookup.problem, area)
+        // A different service answering is not a border crossing: they can name the same place differently.
+        val events = if (lookup.provider == answeredBy) eventsFor(area, found) else emptyList()
+        return AreaUpdate(
+            copy(askedAt = position, area = found, failedAtMillis = null, answeredBy = lookup.provider),
+            events,
+            area = found,
+        )
     }
 
     /** Nominatim first. If it fails or finds no address, Photon, when there is one. The problem names each that failed. */
-    private fun lookUp(position: Position): Pair<Area?, String?> {
+    private fun lookUp(position: Position): Lookup {
         val (fromNominatim, nominatimProblem) = attempt { parseArea(nominatim.reverse(position)) }
-        if (fromNominatim != null || fallback == null) return fromNominatim to nominatimProblem
+        if (fromNominatim != null || fallback == null) return Lookup(fromNominatim, nominatimProblem, Provider.Nominatim)
         val (fromPhoton, photonProblem) = attempt { parsePhotonArea(fallback.reverse(position)) }
-        if (fromPhoton != null) return fromPhoton to null
-        return null to "${nominatimProblem ?: "Nominatim found no address"}; Photon: ${photonProblem ?: "no address found"}"
+        if (fromPhoton != null) return Lookup(fromPhoton, null, Provider.Photon)
+        return Lookup(null, "${nominatimProblem ?: "Nominatim found no address"}; Photon: ${photonProblem ?: "no address found"}", null)
     }
 
     private fun attempt(lookUp: () -> Area?): Pair<Area?, String?> = try {
@@ -89,8 +101,9 @@ data class AreaTracker private constructor(
         // The first place we learn is where the Trip started: the driver is already there, not entering it.
         if (before == null) return emptyList()
         val country = if (before.country != after.country) AreaEvent.EnteredCountry(after.country) else null
+        // A province that was simply not known before (same country) is learned, not entered.
         val province = after.province
-            ?.takeIf { before.country != after.country || before.province != it }
+            ?.takeIf { before.country != after.country || (before.province != null && before.province != it) }
             ?.let { AreaEvent.EnteredProvince(it, after.provinceWikipediaTag, after.provinceWikidataId) }
         return listOfNotNull(country, province)
     }
@@ -100,7 +113,7 @@ data class AreaTracker private constructor(
         private const val RETRY_AFTER_MILLIS = 30_000L
 
         fun starting(nominatim: NominatimClient, clockMillis: () -> Long, fallback: PhotonClient? = null): AreaTracker =
-            AreaTracker(nominatim, clockMillis, askedAt = null, area = null, failedAtMillis = null, fallback = fallback)
+            AreaTracker(nominatim, clockMillis, askedAt = null, area = null, failedAtMillis = null, fallback = fallback, answeredBy = null)
     }
 }
 

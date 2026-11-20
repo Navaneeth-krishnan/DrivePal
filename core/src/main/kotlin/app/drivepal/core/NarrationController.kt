@@ -20,9 +20,18 @@ sealed interface NarrationEvent {
     data class SpeechDone(val speakId: String) : NarrationEvent
     data class SpeechFailed(val speakId: String) : NarrationEvent
 
+    /** The text is in a language no installed voice speaks, so it cannot be told at all. */
+    data class SpeechUnavailable(val speakId: String) : NarrationEvent
+
     /** [permanent] is true when another app has taken the audio for good, false for a short interruption (a call, a navigation prompt). */
     data class FocusLost(val permanent: Boolean) : NarrationEvent
     data object FocusGained : NarrationEvent
+
+    /** The system refused the audio request outright (a call in progress, say), and will not grant it later. */
+    data object FocusDenied : NarrationEvent
+
+    /** The Still-on-the-road question was answered, so it must not be asked (again). */
+    data object QuestionCancelled : NarrationEvent
     data object Skip : NarrationEvent
     data object Replay : NarrationEvent
 }
@@ -51,6 +60,8 @@ data class NarrationController private constructor(
     private val paused: Playing?,
     private val lastStory: Utterance?,
     private val holdsFocus: Boolean,
+    /** An audio request is registered with the system (granted, or promised for later) and must be given back. */
+    private val focusRequested: Boolean,
     private val speaks: Int,
 ) {
     /** [text] is what was handed to the speech engine this time (it may be the rest of a Story, after an interruption). */
@@ -71,8 +82,11 @@ data class NarrationController private constructor(
         is NarrationEvent.SpeechProgress -> progressed(event)
         is NarrationEvent.SpeechDone -> finished(event.speakId, StoryOutcome.Told)
         is NarrationEvent.SpeechFailed -> finished(event.speakId, StoryOutcome.Interrupted)
+        is NarrationEvent.SpeechUnavailable -> finished(event.speakId, StoryOutcome.Dropped)
         is NarrationEvent.FocusLost -> focusLost(event.permanent)
         NarrationEvent.FocusGained -> focusGained()
+        NarrationEvent.FocusDenied -> focusDenied()
+        NarrationEvent.QuestionCancelled -> questionCancelled()
         NarrationEvent.Skip -> skipped()
         NarrationEvent.Replay -> replayed()
     }
@@ -93,7 +107,10 @@ data class NarrationController private constructor(
     private fun finished(speakId: String, outcome: StoryOutcome): NarrationStep {
         val playing = current?.takeIf { it.speakId == speakId } ?: return NarrationStep(this, emptyList()) // a late callback
         val outcomes = outcomeFor(playing, outcome)
-        val next = copy(current = null, lastStory = if (playing.utterance.story && !playing.replay) playing.utterance else lastStory).playNext()
+        val next = copy(
+            current = null,
+            lastStory = if (playing.utterance.story && !playing.replay && outcome == StoryOutcome.Told) playing.utterance else lastStory,
+        ).playNext()
         return next.copy(commands = outcomes + next.commands)
     }
 
@@ -117,11 +134,16 @@ data class NarrationController private constructor(
         }
         val dropped = queue.filter { it.story }.map { NarrationCommand.Outcome(it, StoryOutcome.Dropped) }
         val commands = stop + outcomeFor(interrupted, StoryOutcome.Interrupted) + dropped
-        return NarrationStep(copy(current = null, paused = null, queue = emptyList(), holdsFocus = false), commands)
+        return NarrationStep(copy(current = null, paused = null, queue = emptyList(), holdsFocus = false, focusRequested = false), commands)
     }
 
     private fun focusGained(): NarrationStep {
-        val waiting = paused ?: return NarrationStep(copy(holdsFocus = holdsFocus), emptyList())
+        // Audio promised for later arriving after the story was skipped or dropped: hand it straight back.
+        val waiting = paused ?: return if (current == null) {
+            NarrationStep(copy(holdsFocus = false, focusRequested = false), listOf(NarrationCommand.AbandonFocus))
+        } else {
+            NarrationStep(this, emptyList())
+        }
         val regained = copy(paused = null, holdsFocus = true)
         if (waiting.utterance.story && !waiting.replay && !isRelevant(waiting.utterance)) {
             val next = regained.playNext()
@@ -134,6 +156,24 @@ data class NarrationController private constructor(
             regained.copy(speaks = number, current = waiting.copy(speakId = speakId, text = rest, spokenChars = 0)),
             listOf(NarrationCommand.Speak(speakId, rest, waiting.utterance.language)),
         )
+    }
+
+    /** The audio request was refused: whatever was about to be told is cut short, and nothing waits for audio that will not come. */
+    private fun focusDenied(): NarrationStep {
+        val refused = current ?: return NarrationStep(copy(holdsFocus = false, focusRequested = false), emptyList())
+        val dropped = queue.filter { it.story }.map { NarrationCommand.Outcome(it, StoryOutcome.Dropped) }
+        return NarrationStep(
+            copy(current = null, paused = null, queue = emptyList(), holdsFocus = false, focusRequested = false),
+            outcomeFor(refused, StoryOutcome.Interrupted) + dropped,
+        )
+    }
+
+    private fun questionCancelled(): NarrationStep {
+        val withoutQuestion = copy(queue = queue.filter { it.story })
+        val playing = current
+        if (playing == null || playing.utterance.story) return NarrationStep(withoutQuestion, emptyList())
+        val next = withoutQuestion.copy(current = null).playNext()
+        return next.copy(commands = listOf(NarrationCommand.StopSpeaking) + next.commands)
     }
 
     private fun replayed(): NarrationStep {
@@ -151,7 +191,7 @@ data class NarrationController private constructor(
         val speakId = "${story.id}#$number"
         val focus = if (holdsFocus) emptyList() else listOf(NarrationCommand.RequestFocus)
         return NarrationStep(
-            copy(speaks = number, holdsFocus = true, current = Playing(story, speakId, story.text, 0, replay = true)),
+            copy(speaks = number, holdsFocus = true, focusRequested = true, current = Playing(story, speakId, story.text, 0, replay = true)),
             focus + NarrationCommand.Speak(speakId, story.text, story.language),
         )
     }
@@ -172,12 +212,12 @@ data class NarrationController private constructor(
             if (!holdsFocus) commands += NarrationCommand.RequestFocus
             commands += NarrationCommand.Speak(speakId, utterance.text, utterance.language)
             return NarrationStep(
-                copy(queue = waiting, speaks = number, holdsFocus = true, current = Playing(utterance, speakId, utterance.text, 0, replay = false)),
+                copy(queue = waiting, speaks = number, holdsFocus = true, focusRequested = true, current = Playing(utterance, speakId, utterance.text, 0, replay = false)),
                 commands,
             )
         }
-        if (holdsFocus) commands += NarrationCommand.AbandonFocus
-        return NarrationStep(copy(queue = emptyList(), holdsFocus = false), commands)
+        if (holdsFocus || focusRequested) commands += NarrationCommand.AbandonFocus
+        return NarrationStep(copy(queue = emptyList(), holdsFocus = false, focusRequested = false), commands)
     }
 
     /** Only Stories have outcomes, and a replay does not count again. */
@@ -191,6 +231,6 @@ data class NarrationController private constructor(
         private val SENTENCE_GAP = Regex("(?<=[.!?])\\s+")
 
         operator fun invoke(isRelevant: (Utterance) -> Boolean): NarrationController =
-            NarrationController(isRelevant, emptyList(), null, null, null, holdsFocus = false, speaks = 0)
+            NarrationController(isRelevant, emptyList(), null, null, null, holdsFocus = false, focusRequested = false, speaks = 0)
     }
 }

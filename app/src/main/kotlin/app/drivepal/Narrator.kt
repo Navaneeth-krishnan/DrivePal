@@ -44,6 +44,7 @@ class Narrator(
     private var silentTrack: AudioTrack? = null
     private var voiceTags: Set<String> = emptySet()
     private var speechReady = false
+    private var speechFailedToStart = false
     private val speech = TextToSpeech(context) { status ->
         handler.post { if (!released) onSpeechInitialised(status) }
     }
@@ -60,11 +61,20 @@ class Narrator(
     /** True while something is being told, or was cut off and is waiting to continue. */
     val isTelling: Boolean get() = controller.isActive
 
+    /** The speech engine is up and has voices. Until then nothing should be written for it to say. */
+    val canSpeak: Boolean get() = speechReady
+
+    /** The speech engine failed to start, or has no voices at all: there is no point writing Stories. */
+    val speechBroken: Boolean get() = speechFailedToStart
+
     fun tell(utterance: Utterance) = dispatch(NarrationEvent.StoryReady(utterance))
 
     fun ask(utterance: Utterance) = dispatch(NarrationEvent.QuestionReady(utterance))
 
     fun replay() = dispatch(NarrationEvent.Replay)
+
+    /** The Still-on-the-road question was answered: it must not be spoken now, or later. */
+    fun cancelQuestion() = dispatch(NarrationEvent.QuestionCancelled)
 
     /** While true the media session stays active, so the *play* button can answer the question. */
     fun setQuestionPending(pending: Boolean) {
@@ -83,9 +93,16 @@ class Narrator(
     }
 
     private fun onSpeechInitialised(status: Int) {
-        if (status != TextToSpeech.SUCCESS) return
+        if (status != TextToSpeech.SUCCESS) {
+            speechFailedToStart = true
+            return
+        }
         speech.setAudioAttributes(AUDIO_ATTRIBUTES)
         voiceTags = speech.availableLanguages.orEmpty().map { it.toLanguageTag() }.toSet()
+        if (voiceTags.isEmpty()) {
+            speechFailedToStart = true
+            return
+        }
         speech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) = Unit
             override fun onDone(utteranceId: String) = post { dispatch(NarrationEvent.SpeechDone(utteranceId)) }
@@ -107,25 +124,34 @@ class Narrator(
     }
 
     private fun execute(commands: List<NarrationCommand>) {
-        var focusDenied = false
+        var focus = Focus.Granted
         for (command in commands) {
             when (command) {
-                NarrationCommand.RequestFocus -> focusDenied = !requestFocus()
+                NarrationCommand.RequestFocus -> focus = requestFocus()
                 NarrationCommand.AbandonFocus -> focusRequest?.let(audioManager::abandonAudioFocusRequest)
                 NarrationCommand.StopSpeaking -> speech.stop()
-                is NarrationCommand.Speak -> if (!focusDenied) speak(command)
+                is NarrationCommand.Speak -> if (focus == Focus.Granted) speak(command)
                 is NarrationCommand.Outcome -> onOutcome(command.utterance, command.outcome)
             }
         }
         updateSession()
-        // Without the audio we wait: the controller keeps the Story and tells it when the focus comes back.
-        if (focusDenied) dispatch(NarrationEvent.FocusLost(permanent = false))
+        // Without the audio we wait, or give up: the controller knows what to do with the Story either way.
+        when (focus) {
+            Focus.Granted -> Unit
+            Focus.Delayed -> dispatch(NarrationEvent.FocusLost(permanent = false)) // a GAIN will follow
+            Focus.Denied -> dispatch(NarrationEvent.FocusDenied) // nothing will follow
+        }
     }
 
     private fun speak(command: NarrationCommand.Speak) {
-        val tag = VoiceChoice.pick(command.language, voiceTags)
-        if (!speechReady || tag == null) {
+        if (!speechReady) {
             post { dispatch(NarrationEvent.SpeechFailed(command.speakId)) }
+            return
+        }
+        // No voice for the language (a Malayalam article, say): reading it with an English voice would be noise.
+        val tag = VoiceChoice.pick(command.language, voiceTags)
+        if (tag == null || !VoiceChoice.hasVoice(command.language, voiceTags)) {
+            post { dispatch(NarrationEvent.SpeechUnavailable(command.speakId)) }
             return
         }
         speech.language = Locale.forLanguageTag(tag)
@@ -134,7 +160,9 @@ class Narrator(
         }
     }
 
-    private fun requestFocus(): Boolean {
+    private enum class Focus { Granted, Delayed, Denied }
+
+    private fun requestFocus(): Focus {
         val request = focusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             .setAudioAttributes(AUDIO_ATTRIBUTES)
             .setAcceptsDelayedFocusGain(true)
@@ -142,7 +170,11 @@ class Narrator(
             .setOnAudioFocusChangeListener(::onFocusChange, handler)
             .build()
             .also { focusRequest = it }
-        return audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return when (audioManager.requestAudioFocus(request)) {
+            AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> Focus.Granted
+            AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> Focus.Delayed
+            else -> Focus.Denied
+        }
     }
 
     private fun onFocusChange(change: Int) {
@@ -184,22 +216,25 @@ class Narrator(
         }
         if (silentTrack != null) return
         val silence = ByteArray(SILENCE_BYTES)
-        silentTrack = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
-            )
-            .setAudioFormat(
-                AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(SILENCE_HZ)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build(),
-            )
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .setBufferSizeInBytes(silence.size)
-            .build()
-            .apply {
-                write(silence, 0, silence.size)
-                setLoopPoints(0, silence.size / 2, -1)
-                play()
-            }
+        // Without this the media keys may not reach us, but the Stories are still told.
+        silentTrack = runCatching {
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(SILENCE_HZ)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build(),
+                )
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(silence.size)
+                .build()
+                .apply {
+                    write(silence, 0, silence.size)
+                    setLoopPoints(0, silence.size / 2, -1)
+                    play()
+                }
+        }.getOrNull()
     }
 
     private fun post(block: () -> Unit) {

@@ -49,6 +49,17 @@ class ToldMemoryTest {
     }
 
     @Test
+    fun `an entry stamped in the future by a wrong phone clock does not make a story told forever`() {
+        val store = FakeStore(mapOf("node/1" to now + 40 * day))
+        val memory = ToldMemory.load(store)
+
+        assertFalse(memory.isTold("node/1", now))
+
+        memory.recording(StoryOutcome.Told, "node/2", now)
+        assertEquals(setOf("node/2"), store.saved.keys)
+    }
+
+    @Test
     fun `what was told is still remembered after the app restarts`() {
         val store = FakeStore()
         ToldMemory.load(store).recording(StoryOutcome.Told, "node/1", now)
