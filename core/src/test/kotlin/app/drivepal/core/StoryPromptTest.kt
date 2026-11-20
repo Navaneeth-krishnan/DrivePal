@@ -15,7 +15,7 @@ class StoryPromptTest {
 
     private fun brief(
         kind: StoryKind = StoryKind.Landmark,
-        talkativeness: Talkativeness = Talkativeness.Normal,
+        talkativeness: Talkativeness = Talkativeness.Chatty,
         relation: Relation? = Relation.Ahead,
         earlierStories: List<String> = emptyList(),
         source: Source = this.source,
@@ -25,24 +25,29 @@ class StoryPromptTest {
     private fun user(brief: StoryBrief) = StoryPrompt.messages(brief)!!.first { it.role == "user" }.content
 
     @Test
-    fun `a landmark story in normal mode is asked to run 30 to 45 seconds, about 75 to 112 words`() {
+    fun `a landmark story in chatty mode is asked to run 30 to 45 seconds, about 75 to 112 words`() {
         assertTrue("between 75 and 112 words" in system(brief()))
     }
 
     @Test
-    fun `a chatty landmark story is longer and a quiet one shorter`() {
-        assertTrue("between 112 and 150 words" in system(brief(talkativeness = Talkativeness.Chatty)))
-        assertTrue("between 50 and 75 words" in system(brief(talkativeness = Talkativeness.Quiet)))
+    fun `a normal landmark story is shorter than a chatty one`() {
+        assertTrue("between 50 and 75 words" in system(brief(talkativeness = Talkativeness.Normal)))
+        assertTrue("between 75 and 112 words" in system(brief(talkativeness = Talkativeness.Chatty)))
     }
 
     @Test
-    fun `entering a province in normal mode is asked to run 60 to 90 seconds, about 150 to 225 words`() {
+    fun `names only asks for no story at all`() {
+        assertNull(StoryPrompt.messages(brief(talkativeness = Talkativeness.Names)))
+    }
+
+    @Test
+    fun `entering a province in chatty mode is asked to run 60 to 90 seconds, about 150 to 225 words`() {
         assertTrue("between 150 and 225 words" in system(brief(kind = StoryKind.Province, relation = null)))
     }
 
     @Test
-    fun `a quiet drive gets no interludes at all`() {
-        assertNull(StoryPrompt.messages(brief(kind = StoryKind.Interlude, talkativeness = Talkativeness.Quiet, relation = null)))
+    fun `a normal drive gets no interludes at all`() {
+        assertNull(StoryPrompt.messages(brief(kind = StoryKind.Interlude, talkativeness = Talkativeness.Normal, relation = null)))
     }
 
     @Test
@@ -75,13 +80,13 @@ class StoryPromptTest {
     fun `an interlude is told as an extra story about one named part, not as an introduction to the place`() {
         val history = source.copy(title = "History", text = "In 1840 the province was formed from a larger county.")
         val rules = system(
-            StoryBrief("South Holland", StoryKind.Interlude, history, Talkativeness.Normal, relation = null, earlierStories = emptyList()),
+            StoryBrief("South Holland", StoryKind.Interlude, history, Talkativeness.Chatty, relation = null, earlierStories = emptyList()),
         )
 
         assertTrue("extra Story" in rules)
         assertTrue("already knows where" in rules)
         assertTrue("Part of the article: History" in user(
-            StoryBrief("South Holland", StoryKind.Interlude, history, Talkativeness.Normal, relation = null, earlierStories = emptyList()),
+            StoryBrief("South Holland", StoryKind.Interlude, history, Talkativeness.Chatty, relation = null, earlierStories = emptyList()),
         ))
     }
 

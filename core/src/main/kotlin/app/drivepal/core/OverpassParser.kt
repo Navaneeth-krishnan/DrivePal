@@ -12,8 +12,9 @@ import kotlinx.serialization.json.jsonPrimitive
 private val TOWN_PLACES = setOf("city", "town", "village")
 
 /**
- * Turns an Overpass JSON response into Subjects. Elements without a name, a position, or a
- * Wikipedia or Wikidata link are skipped: without a Source there is no Story.
+ * Turns an Overpass JSON response into Subjects. Elements without a name or a position are skipped. A Landmark also
+ * needs a Wikipedia or Wikidata link: without a Source there is no Story. Named motorway junctions and towns or villages
+ * without such a link are kept too, but as places that can only be announced by name.
  */
 internal fun parseOverpass(json: String): List<Subject> {
     val root = Json.parseToJsonElement(json).jsonObject
@@ -31,7 +32,9 @@ private fun subjectOf(element: JsonObject): Subject? {
     val name = tag("name:en") ?: tag("name") ?: return null
     val wikipedia = tag("wikipedia")
     val wikidata = tag("wikidata")
-    if (wikipedia == null && wikidata == null) return null
+    val isJunction = tag("highway") == "motorway_junction"
+    val isTown = tag("place") in TOWN_PLACES
+    if (wikipedia == null && wikidata == null && !isJunction && !isTown) return null
 
     val place = element["center"]?.jsonObject ?: element
     val latitude = place["lat"]?.jsonPrimitive?.doubleOrNull ?: return null
@@ -41,7 +44,11 @@ private fun subjectOf(element: JsonObject): Subject? {
     return Subject(
         id = id,
         name = name,
-        kind = if (tag("place") in TOWN_PLACES) SubjectKind.Town else SubjectKind.Landmark,
+        kind = when {
+            isJunction -> SubjectKind.Junction
+            isTown -> SubjectKind.Town
+            else -> SubjectKind.Landmark
+        },
         position = Position(latitude, longitude),
         wikipediaTag = wikipedia,
         wikidataId = wikidata,

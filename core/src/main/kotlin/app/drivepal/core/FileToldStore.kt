@@ -1,7 +1,6 @@
 package app.drivepal.core
 
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -22,21 +21,6 @@ class FileToldStore(private val file: File) : ToldStore {
         emptyMap()
     }
 
-    /** Written to a temporary file first and then moved into place, so a crash cannot leave half a file. */
-    override fun save(entries: Map<String, Long>) {
-        val json = buildJsonObject { entries.forEach { (key, toldAt) -> put(key, toldAt) } }.toString()
-        val temporary = File(file.parentFile, "${file.name}.tmp")
-        try {
-            FileOutputStream(temporary).use { out ->
-                out.write(json.toByteArray(Charsets.UTF_8))
-                out.fd.sync() // on disk before it replaces the old file
-            }
-            if (!temporary.renameTo(file)) {
-                file.delete()
-                if (!temporary.renameTo(file)) temporary.delete()
-            }
-        } catch (e: IOException) {
-            temporary.delete() // not being able to remember is a small loss; never stop a drive for it
-        }
-    }
+    override fun save(entries: Map<String, Long>) =
+        writeAtomically(file, buildJsonObject { entries.forEach { (key, toldAt) -> put(key, toldAt) } }.toString())
 }

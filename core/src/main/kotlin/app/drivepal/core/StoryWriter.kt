@@ -17,7 +17,7 @@ sealed interface StoryResult {
  */
 class StoryWriter(private val chat: ChatClient) {
 
-    /** Returns null when this drive should get no Story of this kind (no Interludes in Quiet mode). */
+    /** Returns null when this drive should get no Story of this kind (no Interludes unless Chatty). */
     fun write(brief: StoryBrief): StoryResult? {
         val messages = StoryPrompt.messages(brief) ?: return null
         val words = wordRange(brief.kind, brief.talkativeness) ?: return null

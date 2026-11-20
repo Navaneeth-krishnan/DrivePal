@@ -1,7 +1,22 @@
 package app.drivepal.core
 
-/** The Story chosen to be written and told now. [title] names it on screen and in the Framing offered to the AI. */
-class Pick(val key: String, val kind: StoryKind, val subject: Subject, val source: Source, val title: String)
+/**
+ * The Story chosen to be written and told now. [title] names it on screen and in the Framing offered to the AI.
+ * [source] is what it is written from; [articleLanguage] and [articleTitle] name the whole article, which differs from
+ * [source] for an Interlude (a section of an Area's article). With [announceOnly] only the place's name is said, no
+ * Story: the driver chose Names mode, or the place has no Source (a Junction, a village without an article).
+ * [key] is what the Told memory records, so an announcement and a Story about one place are remembered apart.
+ */
+class Pick(
+    val key: String,
+    val kind: StoryKind,
+    val subject: Subject,
+    val source: Source?,
+    val title: String,
+    val articleLanguage: String?,
+    val articleTitle: String?,
+    val announceOnly: Boolean = false,
+)
 
 /**
  * Decides what the driver hears. It keeps the pool of Stories that could be told (places with their Source), the
@@ -20,7 +35,7 @@ class StoryDirector(
     private val isPlaceRelevant: (subjectId: String) -> Boolean,
     private val wallClockMillis: () -> Long,
 ) {
-    private class Ready(val candidate: Candidate, val subject: Subject, val source: Source)
+    private class Ready(val candidate: Candidate, val subject: Subject, val source: Source?, val article: Source? = source)
 
     /** An Area's article, split into the sections that can become Interludes. */
     private class AreaSource(val subject: Subject, val source: Source, val sections: List<Section>)
@@ -68,10 +83,14 @@ class StoryDirector(
         if (subject.id in enteredAreas) addCandidate(subject, source)
     }
 
+    /** A place with nothing to tell (a Junction, a village without an article) that is only announced by name. */
+    fun placeFound(subject: Subject) = addCandidate(subject, source = null)
+
     /** The Story to write now, or null: nothing is due, nothing is worth telling, or something is already [busy]. */
     fun next(nowMillis: Long, talkativeness: Talkativeness, busy: Boolean, standstill: Boolean): Pick? {
         scheduler = scheduler.withTalkativeness(talkativeness)
         val wallNow = wallClockMillis()
+        val namesOnly = talkativeness == Talkativeness.Names
         pool.values.removeAll { !isRelevant(it) || memory.isTold(it.candidate.key, wallNow) || it.candidate.key in unspoken }
         val interlude = dueInterlude(wallNow)
         val chosen = scheduler.next(
@@ -80,18 +99,21 @@ class StoryDirector(
             busy = busy,
             standstill = standstill,
             isRelevant = { ready(it.key)?.let(::isRelevant) ?: false },
-            isTold = { memory.isTold(it.key, wallNow) },
+            isTold = { candidate -> ready(candidate.key)?.let { memory.isTold(toldKey(it, namesOnly), wallNow) } ?: true },
         ) ?: return null
         val ready = ready(chosen.key) ?: return null
-        val title = if (ready.candidate.kind == StoryKind.Interlude) "${ready.subject.name}: ${ready.source.title}" else ready.subject.name
-        return Pick(ready.candidate.key, ready.candidate.kind, ready.subject, ready.source, title)
+        val title = if (ready.candidate.kind == StoryKind.Interlude) "${ready.subject.name}: ${ready.source?.title}" else ready.subject.name
+        return Pick(
+            toldKey(ready, namesOnly), ready.candidate.kind, ready.subject, ready.source, title,
+            ready.article?.language, ready.article?.title, announceOnly = namesOnly || ready.source == null,
+        )
     }
 
     /** The Areas the driver is in now (the Country and the Province), as keys. */
     fun currentAreaKeys(): Set<String> = setOfNotNull(currentCountryKey, currentProvinceKey)
 
     /** Whether the Story with this key is still worth telling. */
-    fun isRelevant(storyKey: String): Boolean = ready(storyKey)?.let(::isRelevant) ?: false
+    fun isRelevant(storyKey: String): Boolean = ready(storyKey.removePrefix(NAME_PREFIX))?.let(::isRelevant) ?: false
 
     /** What became of a Story: it is remembered, the quiet gap starts, and a Story that could not be spoken is not tried again. */
     fun storyEnded(key: String, title: String, outcome: StoryOutcome, nowMillis: Long) {
@@ -101,8 +123,8 @@ class StoryDirector(
         }
         if (outcome == StoryOutcome.Told || outcome == StoryOutcome.Skipped) toldTitles = toldTitles + title
         if (outcome == StoryOutcome.Dropped) {
-            unspoken += key
-            pool.remove(key)
+            unspoken += key.removePrefix(NAME_PREFIX)
+            pool.remove(key.removePrefix(NAME_PREFIX))
         }
     }
 
@@ -119,14 +141,19 @@ class StoryDirector(
         else -> isPlaceRelevant(ready.subject.id)
     }
 
-    private fun addCandidate(subject: Subject, source: Source) {
+    /** What the Told memory records: a name said on its own is not the Story, so it must not use it up. */
+    private fun toldKey(ready: Ready, namesOnly: Boolean) =
+        if (namesOnly || ready.source == null) "$NAME_PREFIX${ready.candidate.key}" else ready.candidate.key
+
+    private fun addCandidate(subject: Subject, source: Source?) {
         val kind = when (subject.kind) {
             SubjectKind.Country -> StoryKind.Country
             SubjectKind.Province -> StoryKind.Province
             SubjectKind.Town -> StoryKind.Town
             SubjectKind.Landmark -> StoryKind.Landmark
+            SubjectKind.Junction -> StoryKind.Junction
         }
-        pool[subject.id] = Ready(Candidate(subject.id, kind, source.notability), subject, source)
+        pool[subject.id] = Ready(Candidate(subject.id, kind, source?.notability ?: Notability(0, 0)), subject, source)
     }
 
     /** The next untold section of the current Province's article, or else of the Country's. */
@@ -143,6 +170,7 @@ class StoryDirector(
                     Candidate(key, StoryKind.Interlude, Notability(0, 0)),
                     area.subject,
                     Source(area.source.language, section.title, section.text, area.source.notability),
+                    article = area.source,
                 )
             }
         }
@@ -167,6 +195,7 @@ class StoryDirector(
 
     private companion object {
         const val INTERLUDE_PREFIX = "interlude/"
+        const val NAME_PREFIX = "name/"
         val NO_POSITION = Position(0.0, 0.0) // an Area is not a point on the map
     }
 }

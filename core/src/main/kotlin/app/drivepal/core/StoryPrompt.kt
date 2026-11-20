@@ -1,8 +1,10 @@
 package app.drivepal.core
 
-enum class Talkativeness { Quiet, Normal, Chatty }
+/** Names only announces places; Normal adds short Stories; Chatty longer Stories and Interludes. */
+enum class Talkativeness { Names, Normal, Chatty }
 
-enum class StoryKind { Landmark, Town, Province, Country, Interlude }
+/** What a Story is about. A Junction is only ever announced by name: it has no Source, so no Story. */
+enum class StoryKind { Landmark, Town, Province, Country, Interlude, Junction }
 
 /** Where a subject is relative to the driver. Areas and Interludes have none. */
 enum class Relation { Ahead, Behind }
@@ -21,21 +23,18 @@ data class StoryBrief(
 /** How long a Story should be, in words, for its kind and the driver's Talkativeness. Null if there should be none. */
 fun wordRange(kind: StoryKind, talkativeness: Talkativeness): IntRange? {
     val seconds = when (talkativeness) {
-        Talkativeness.Quiet -> when (kind) {
+        Talkativeness.Names -> return null
+        Talkativeness.Normal -> when (kind) {
             StoryKind.Landmark -> 20..30
             StoryKind.Town -> 25..35
             StoryKind.Province, StoryKind.Country -> 40..50
-            StoryKind.Interlude -> return null
+            StoryKind.Interlude, StoryKind.Junction -> return null
         }
-        Talkativeness.Normal -> when (kind) {
+        Talkativeness.Chatty -> when (kind) {
             StoryKind.Landmark -> 30..45
             StoryKind.Town -> 45..60
             StoryKind.Province, StoryKind.Country, StoryKind.Interlude -> 60..90
-        }
-        Talkativeness.Chatty -> when (kind) {
-            StoryKind.Landmark -> 45..60
-            StoryKind.Town -> 60..75
-            StoryKind.Province, StoryKind.Country, StoryKind.Interlude -> 90..120
+            StoryKind.Junction -> return null
         }
     }
     return (seconds.first * WORDS_PER_SECOND).toInt()..(seconds.last * WORDS_PER_SECOND).toInt()

@@ -42,6 +42,40 @@ class NarrationControllerTest {
     }
 
     @Test
+    fun `the place is announced first and the story follows in the same breath`() {
+        val announced = castle.copy(announcement = "You are entering Eraviperoor.")
+
+        val (_, commands) = controller().run(NarrationEvent.StoryReady(announced))
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus,
+                speak("castle#1", "You are entering Eraviperoor. The castle is old. It has a moat. Kings lived there."),
+            ),
+            commands,
+        )
+    }
+
+    @Test
+    fun `a name announced on its own is spoken alone and counts as Told once done`() {
+        val nameOnly = Utterance("name/node/9", "", "en", title = "Kozhencherry", announcement = "Approaching Kozhencherry junction.")
+        relevant = setOf("name/node/9")
+
+        val (_, commands) = controller().run(
+            NarrationEvent.StoryReady(nameOnly),
+            NarrationEvent.SpeechDone("name/node/9#1"),
+        )
+
+        assertEquals(
+            listOf(
+                NarrationCommand.RequestFocus, speak("name/node/9#1", "Approaching Kozhencherry junction."),
+                outcome(nameOnly, StoryOutcome.Told), NarrationCommand.AbandonFocus,
+            ),
+            commands,
+        )
+    }
+
+    @Test
     fun `a second story waits for the first and the audio focus is held in between`() {
         val (_, commands) = controller().run(
             NarrationEvent.StoryReady(castle),

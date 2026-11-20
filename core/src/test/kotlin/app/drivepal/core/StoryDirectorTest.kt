@@ -16,7 +16,7 @@ class StoryDirectorTest {
     private val store = FakeStore()
     private var placesInRange: Set<String> = emptySet()
 
-    private fun director(talkativeness: Talkativeness = Talkativeness.Normal, store: ToldStore = this.store) = StoryDirector(
+    private fun director(talkativeness: Talkativeness = Talkativeness.Chatty, store: ToldStore = this.store) = StoryDirector(
         store = store,
         scheduler = StoryScheduler(talkativeness, startedMillis = 0, interludeAfterMillis = minute),
         isPlaceRelevant = { it in placesInRange },
@@ -50,7 +50,7 @@ class StoryDirectorTest {
         val asked = director.startIn(southHolland)
 
         assertEquals(listOf("area/country/Netherlands", "area/province/Netherlands/South Holland"), asked.map { it.id })
-        assertNull(director.next(nowMillis = 0, Talkativeness.Normal, busy = false, standstill = false))
+        assertNull(director.next(nowMillis = 0, Talkativeness.Chatty, busy = false, standstill = false))
     }
 
     @Test
@@ -59,7 +59,7 @@ class StoryDirectorTest {
 
         val asked = director.areaChanged(utrecht, listOf(AreaEvent.EnteredProvince("Utrecht")))
         director.sourceFound(asked.single(), source(title = "Utrecht"))
-        val pick = director.next(nowMillis = 0, Talkativeness.Normal, busy = false, standstill = false)
+        val pick = director.next(nowMillis = 0, Talkativeness.Chatty, busy = false, standstill = false)
 
         assertEquals("area/province/Netherlands/Utrecht", pick?.key)
         assertEquals(StoryKind.Province, pick?.kind)
@@ -79,12 +79,12 @@ class StoryDirectorTest {
         // Both new areas need their own lookup: the Dutch province's article must not stand in for the Belgian one.
         assertEquals(listOf("area/country/Belgium", "area/province/Belgium/Limburg"), asked.map { it.id })
         asked.forEach { director.sourceFound(it, Source("en", it.name, "Article of ${it.id}", Notability(50, 500))) }
-        val first = director.next(0, Talkativeness.Normal, busy = false, standstill = false)!!
+        val first = director.next(0, Talkativeness.Chatty, busy = false, standstill = false)!!
         director.storyEnded(first.key, first.title, StoryOutcome.Told, nowMillis = 0)
-        val second = director.next(minute, Talkativeness.Normal, busy = false, standstill = false)!!
+        val second = director.next(minute, Talkativeness.Chatty, busy = false, standstill = false)!!
 
         assertEquals("area/country/Belgium", first.key)
-        assertEquals("Article of area/province/Belgium/Limburg", second.source.text)
+        assertEquals("Article of area/province/Belgium/Limburg", second.source!!.text)
     }
 
     @Test
@@ -101,7 +101,7 @@ class StoryDirectorTest {
 
         var now = 2 * minute
         while (true) {
-            val pick = director.next(now, Talkativeness.Normal, busy = false, standstill = false) ?: break
+            val pick = director.next(now, Talkativeness.Chatty, busy = false, standstill = false) ?: break
             told += pick.title
             director.storyEnded(pick.key, pick.title, StoryOutcome.Told, now)
             now += 10 * minute
@@ -116,12 +116,12 @@ class StoryDirectorTest {
     @Test
     fun `a section told on an earlier trip is not offered again after a restart`() {
         director().apply { startIn(southHolland, "History", "Geography") }.also { first ->
-            val pick = first.next(2 * minute, Talkativeness.Normal, busy = false, standstill = false)!!
+            val pick = first.next(2 * minute, Talkativeness.Chatty, busy = false, standstill = false)!!
             first.storyEnded(pick.key, pick.title, StoryOutcome.Told, 2 * minute)
         }
 
         val afterRestart = director().apply { startIn(southHolland, "History", "Geography") }
-        val pick = afterRestart.next(2 * minute, Talkativeness.Normal, busy = false, standstill = false)
+        val pick = afterRestart.next(2 * minute, Talkativeness.Chatty, busy = false, standstill = false)
 
         assertEquals("South Holland: Geography", pick?.title)
     }
@@ -133,17 +133,17 @@ class StoryDirectorTest {
 
         val lateArrival = Subject("area/province/Netherlands/South Holland", "South Holland", SubjectKind.Province, Position(0.0, 0.0))
         director.sourceFound(lateArrival, source("History"))
-        val pick = director.next(2 * minute, Talkativeness.Normal, busy = false, standstill = false)
+        val pick = director.next(2 * minute, Talkativeness.Chatty, busy = false, standstill = false)
 
         // Only the country (still current) can give an interlude; nothing from the province that was left.
         assertEquals("Netherlands: History", pick?.title)
     }
 
     @Test
-    fun `there are no interludes on a quiet drive`() {
-        val director = director(Talkativeness.Quiet).apply { startIn(southHolland, "History") }
+    fun `there are no interludes on a normal drive`() {
+        val director = director(Talkativeness.Normal).apply { startIn(southHolland, "History") }
 
-        assertNull(director.next(60 * minute, Talkativeness.Quiet, busy = false, standstill = false))
+        assertNull(director.next(60 * minute, Talkativeness.Normal, busy = false, standstill = false))
     }
 
     @Test
@@ -154,9 +154,9 @@ class StoryDirectorTest {
         director.sourceFound(obscure, obscureSource)
         director.sourceFound(known, knownSource)
 
-        val first = director.next(0, Talkativeness.Normal, busy = false, standstill = false)
+        val first = director.next(0, Talkativeness.Chatty, busy = false, standstill = false)
         placesInRange = setOf("node/1") // the famous one is now behind
-        val second = director.next(0, Talkativeness.Normal, busy = false, standstill = false)
+        val second = director.next(0, Talkativeness.Chatty, busy = false, standstill = false)
 
         assertEquals("node/2", first?.key)
         assertEquals("node/1", second?.key)
@@ -168,30 +168,45 @@ class StoryDirectorTest {
         val (town, townSource) = place("node/1", editions = 10)
         director.sourceFound(town, townSource)
 
-        val first = director.next(0, Talkativeness.Normal, busy = false, standstill = false)!!
+        val first = director.next(0, Talkativeness.Chatty, busy = false, standstill = false)!!
         director.storyEnded(first.key, first.title, StoryOutcome.Interrupted, 0)
-        val again = director.next(minute, Talkativeness.Normal, busy = false, standstill = false)!!
+        val again = director.next(minute, Talkativeness.Chatty, busy = false, standstill = false)!!
         director.storyEnded(again.key, again.title, StoryOutcome.Told, minute + 1)
 
         assertEquals("node/1", again.key)
-        assertNull(director.next(10 * minute, Talkativeness.Normal, busy = false, standstill = false))
+        assertNull(director.next(10 * minute, Talkativeness.Chatty, busy = false, standstill = false))
     }
 
     @Test
     fun `a story that could not be spoken is dropped for this trip instead of being written again and again`() {
         val director = director().apply { startIn(southHolland, "History", "Geography") }
-        val first = director.next(2 * minute, Talkativeness.Normal, busy = false, standstill = false)!!
+        val first = director.next(2 * minute, Talkativeness.Chatty, busy = false, standstill = false)!!
 
         director.storyEnded(first.key, first.title, StoryOutcome.Dropped, 2 * minute)
-        val next = director.next(10 * minute, Talkativeness.Normal, busy = false, standstill = false)
+        val next = director.next(10 * minute, Talkativeness.Chatty, busy = false, standstill = false)
 
         assertTrue(next != null && next.key != first.key)
     }
 
     @Test
+    fun `a pick names the whole article it came from, so an interlude links to the article and not its section`() {
+        val director = director().apply { startIn(southHolland, "History") }
+        val interlude = director.next(2 * minute, Talkativeness.Chatty, busy = false, standstill = false)!!
+        director.storyEnded(interlude.key, interlude.title, StoryOutcome.Told, 2 * minute)
+        val (town, townSource) = place("node/1", editions = 10)
+        director.sourceFound(town, townSource)
+        val place = director.next(4 * minute, Talkativeness.Chatty, busy = false, standstill = false)!!
+
+        assertEquals("History", interlude.source!!.title) // what the Story is written from
+        assertEquals("South Holland", interlude.articleTitle) // where the driver can read more
+        assertEquals("en", interlude.articleLanguage)
+        assertEquals("nl" to "Place node/1", place.articleLanguage to place.articleTitle)
+    }
+
+    @Test
     fun `the titles told on this trip are remembered for framing the next story`() {
         val director = director().apply { startIn(southHolland, "History") }
-        val first = director.next(2 * minute, Talkativeness.Normal, busy = false, standstill = false)!!
+        val first = director.next(2 * minute, Talkativeness.Chatty, busy = false, standstill = false)!!
 
         director.storyEnded(first.key, first.title, StoryOutcome.Told, 2 * minute)
 

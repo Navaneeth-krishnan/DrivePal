@@ -14,7 +14,7 @@ class StorySchedulerTest {
     private val second = 1_000L
     private val minute = 60 * second
 
-    private fun scheduler(talkativeness: Talkativeness = Talkativeness.Normal) = StoryScheduler(talkativeness)
+    private fun scheduler(talkativeness: Talkativeness = Talkativeness.Chatty) = StoryScheduler(talkativeness)
 
     private fun StoryScheduler.next(
         now: Long,
@@ -73,15 +73,18 @@ class StorySchedulerTest {
     }
 
     @Test
-    fun `a quiet drive waits five minutes and a chatty one twenty seconds`() {
+    fun `names only waits twenty seconds, a normal drive five minutes and a chatty one a minute`() {
         val candidate = town("node/1", 10)
-        val quiet = scheduler(Talkativeness.Quiet).storyEnded(0)
+        val names = scheduler(Talkativeness.Names).storyEnded(0)
+        val normal = scheduler(Talkativeness.Normal).storyEnded(0)
         val chatty = scheduler(Talkativeness.Chatty).storyEnded(0)
 
-        assertNull(quiet.next(4 * minute + 59 * second, candidate))
-        assertEquals(candidate, quiet.next(5 * minute, candidate))
-        assertNull(chatty.next(19 * second, candidate))
-        assertEquals(candidate, chatty.next(20 * second, candidate))
+        assertNull(names.next(19 * second, candidate))
+        assertEquals(candidate, names.next(20 * second, candidate))
+        assertNull(normal.next(4 * minute + 59 * second, candidate))
+        assertEquals(candidate, normal.next(5 * minute, candidate))
+        assertNull(chatty.next(59 * second, candidate))
+        assertEquals(candidate, chatty.next(60 * second, candidate))
     }
 
     @Test
@@ -110,8 +113,10 @@ class StorySchedulerTest {
     private val interlude = Candidate("interlude/area/province/South Holland/History", StoryKind.Interlude, Notability(0, 0))
 
     @Test
-    fun `a quiet drive gets no interludes however long the silence`() {
-        assertNull(scheduler(Talkativeness.Quiet).next(60 * minute, interlude))
+    fun `only a chatty drive gets interludes, however long the silence`() {
+        assertNull(scheduler(Talkativeness.Normal).next(60 * minute, interlude))
+        assertNull(scheduler(Talkativeness.Names).next(60 * minute, interlude))
+        assertEquals(interlude, scheduler(Talkativeness.Chatty).next(60 * minute, interlude))
     }
 
     @Test
@@ -124,7 +129,7 @@ class StorySchedulerTest {
 
     @Test
     fun `before any story the silence is counted from the start of the trip`() {
-        val started = StoryScheduler(Talkativeness.Normal, startedMillis = 100 * second)
+        val started = StoryScheduler(Talkativeness.Chatty, startedMillis = 100 * second)
 
         assertNull(started.next(100 * second + 299 * second, interlude))
         assertEquals(interlude, started.next(100 * second + 300 * second, interlude))

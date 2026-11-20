@@ -18,12 +18,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
-import java.io.File
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import app.drivepal.core.ChatClient
-import app.drivepal.core.ChatSettings
-import app.drivepal.core.FileToldStore
+import app.drivepal.core.LoggedStory
+import app.drivepal.core.TripLog
 import app.drivepal.core.Fix
 import app.drivepal.core.Position
 import app.drivepal.core.SourceLibrary
@@ -48,6 +47,7 @@ class TripService : Service() {
 
     private var exploration: Exploration? = null
     private var narrator: Narrator? = null
+    private var tripLog: TripLog? = null
 
     // An object, not a lambda: on Android 10 the other callbacks are abstract.
     private val locationListener = object : LocationListener {
@@ -123,14 +123,22 @@ class TripService : Service() {
             onPlayPressed = ::onPlayPressed,
         )
         narrator = voice
-        val settings = Settings(applicationContext)
+        val preferences = AppPreferences(applicationContext)
+        val storage = AppStorage.of(applicationContext)
+        val connection = storage.aiConnection()
+        val problems = connection.settings.problems(connection.apiKey)
+        // Settings are read once per Trip: a change in Settings applies from the next Trip.
+        val writer = StoryWriter(ChatClient(AiHttp { connection }, connection.settings.chatSettings()))
         exploration = Exploration(
             finder, sources, writer, voice,
-            store = FileToldStore(File(filesDir, "told.json")),
-            talkativeness = { settings.talkativeness },
+            store = storage.told,
+            talkativeness = { preferences.talkativeness },
         )
+        tripLog = TripLog.load(storage.tripLog).startTrip(System.currentTimeMillis())
         shownState = TripState.Driving
-        TripSession.update { TripUi(running = true, state = TripState.Driving) }
+        TripSession.update {
+            TripUi(running = true, state = TripState.Driving, notice = problems.firstOrNull()?.let { "AI settings: $it" })
+        }
         handler.postDelayed(tick, TICK_MILLIS)
     }
 
@@ -162,6 +170,7 @@ class TripService : Service() {
 
     private fun noteOutcome(utterance: Utterance, outcome: StoryOutcome) {
         exploration?.onOutcome(utterance, outcome)
+        LoggedStory.ofOrNull(utterance, outcome, System.currentTimeMillis())?.let { tripLog = tripLog?.recording(it) }
         TripSession.update { ui -> ui.copy(narration = (listOf("${outcome.name}: ${utterance.title}") + ui.narration).take(MAX_NARRATION)) }
     }
 
@@ -186,6 +195,8 @@ class TripService : Service() {
 
     private fun endTrip() {
         handler.removeCallbacks(tick)
+        tripLog?.endTrip(System.currentTimeMillis())
+        tripLog = null
         exploration?.stop()
         exploration = null
         narrator?.release()
@@ -205,6 +216,7 @@ class TripService : Service() {
     }
 
     override fun onDestroy() {
+        tripLog?.endTrip(System.currentTimeMillis())
         exploration?.stop()
         narrator?.release()
         handler.removeCallbacks(tick)
@@ -279,12 +291,5 @@ class TripService : Service() {
 
         // Process-wide so that what has been looked up is remembered from one Trip to the next.
         private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime, WikipediaGeoSearchHttp)
-        private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)
-        private val writer = StoryWriter(
-            ChatClient(
-                AiHttp,
-                ChatSettings(model = BuildConfig.AI_MODEL, reasoningEffort = BuildConfig.AI_REASONING_EFFORT.ifBlank { null }),
-            ),
-        )
-    }
+        private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)    }
 }

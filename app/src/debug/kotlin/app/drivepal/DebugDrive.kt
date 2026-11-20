@@ -11,6 +11,7 @@ import android.os.SystemClock
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 
 /**
  * Debug builds only: drives a test route by feeding fake GPS fixes, in real time, so the whole app can be tried
@@ -21,6 +22,8 @@ object DebugDrive {
     val routes: List<String> = DebugRoutes.all.map { it.name }
 
     private const val STEP_SECONDS = 5
+    private const val VARIATION_PERIOD_SECONDS = 40.0
+    private const val MIN_MOVING_KMH = 8.0
     private const val PARKED_SECONDS = 600
     private const val METERS_PER_DEGREE = 111_195.0
 
@@ -45,17 +48,30 @@ object DebugDrive {
             return "Allow mock locations first: adb shell appops set app.drivepal android:mock_location allow"
         }
         val path = Path(route.points)
-        val metersPerStep = route.speedKmh / 3.6 * STEP_SECONDS
-        var step = 0
+        var distance = 0.0
+        var seconds = 0
+        var jamsDone = 0
+        var jamSecondsLeft = 0
+        var parkedSeconds = 0
         val tick = object : Runnable {
             override fun run() {
-                val distance = step * metersPerStep
-                val arrived = distance > path.length
+                val arrived = distance >= path.length
                 // A real car that stops keeps its GPS on: park at the end of the route for a while.
-                if (arrived && distance > path.length + PARKED_SECONDS / STEP_SECONDS * metersPerStep) return stop(context)
-                val speed = if (arrived) 0.0 else route.speedKmh / 3.6
+                if (arrived && parkedSeconds >= PARKED_SECONDS) return stop(context)
+                val nextJam = route.jams.getOrNull(jamsDone)
+                if (jamSecondsLeft == 0 && nextJam != null && distance >= nextJam.atFraction * path.length) {
+                    jamSecondsLeft = nextJam.seconds
+                    jamsDone++
+                }
+                val speed = when {
+                    arrived || jamSecondsLeft > 0 -> 0.0
+                    else -> (route.speedKmh + route.speedVariationKmh * sin(seconds / VARIATION_PERIOD_SECONDS)).coerceAtLeast(MIN_MOVING_KMH) / 3.6
+                }
                 manager.setTestProviderLocation(LocationManager.GPS_PROVIDER, fix(path, distance.coerceAtMost(path.length), speed))
-                step++
+                if (arrived) parkedSeconds += STEP_SECONDS
+                if (jamSecondsLeft > 0) jamSecondsLeft = (jamSecondsLeft - STEP_SECONDS).coerceAtLeast(0)
+                distance += speed * STEP_SECONDS
+                seconds += STEP_SECONDS
                 handler.postDelayed(this, STEP_SECONDS * 1000L)
             }
         }

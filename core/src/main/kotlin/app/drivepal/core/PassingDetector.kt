@@ -1,6 +1,7 @@
 package app.drivepal.core
 
-enum class SubjectKind { Town, Landmark, Province, Country }
+/** A Junction is announced by name only; it never has a Source. */
+enum class SubjectKind { Town, Landmark, Province, Country, Junction }
 
 /** A Town or Landmark that might get a Story. */
 data class Subject(
@@ -41,7 +42,7 @@ data class PassingDetector private constructor(
 ) {
     /** Subjects still close enough to talk about: within the Passing range, ahead or behind. */
     val relevantSubjects: List<Subject>
-        get() = position?.let { here -> subjects.filter { distanceMeters(here, it.position) <= PASSING_RANGE_METERS } }
+        get() = position?.let { here -> subjects.filter { distanceMeters(here, it.position) <= rangeMeters(it) } }
             ?: emptyList()
 
     /** True if [subject] lies in front of the driver. With no heading yet, everything counts as ahead. */
@@ -57,7 +58,7 @@ data class PassingDetector private constructor(
 
     /** True if [subject] was already within range where the Trip began (judged from the first position). */
     private fun aroundTheStart(subject: Subject, now: Position): Boolean =
-        distanceMeters(startPosition ?: now, subject.position) <= PASSING_RANGE_METERS
+        distanceMeters(startPosition ?: now, subject.position) <= rangeMeters(subject)
 
     /** How close the route came to [subject], counting the straight path since the last position. */
     private fun distanceFromRoute(subject: Subject, now: Position): Double =
@@ -65,7 +66,7 @@ data class PassingDetector private constructor(
 
     fun withPosition(position: Position): PassingUpdate {
         val newlyPassed = subjects.filter {
-            it.id !in passedIds && !aroundTheStart(it, position) && distanceFromRoute(it, position) <= PASSING_RANGE_METERS
+            it.id !in passedIds && !aroundTheStart(it, position) && distanceFromRoute(it, position) <= rangeMeters(it)
         }
         val anchor = headingAnchor
         val moved = anchor != null && distanceMeters(anchor, position) >= HEADING_MIN_MOVE_METERS
@@ -83,6 +84,10 @@ data class PassingDetector private constructor(
 
     companion object {
         private const val PASSING_RANGE_METERS = 3_000.0
+        private const val JUNCTION_RANGE_METERS = 300.0 // a junction is a point on the road, not a place in sight
+
+        private fun rangeMeters(subject: Subject) =
+            if (subject.kind == SubjectKind.Junction) JUNCTION_RANGE_METERS else PASSING_RANGE_METERS
         private const val HEADING_MIN_MOVE_METERS = 25.0 // above typical GPS noise
         private const val AHEAD_WITHIN_DEGREES = 90.0
 

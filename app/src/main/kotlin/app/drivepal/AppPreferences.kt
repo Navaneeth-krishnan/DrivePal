@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.core.content.edit
 import app.drivepal.core.Talkativeness
 
-/** The driver's choices, remembered between runs. */
-class Settings(context: Context) {
+/** The driver's small choices (how talkative), remembered between runs. The AI settings live in [AppStorage]. */
+class AppPreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("drivepal", Context.MODE_PRIVATE)
 
     var talkativeness: Talkativeness

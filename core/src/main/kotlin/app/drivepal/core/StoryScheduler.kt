@@ -8,7 +8,7 @@ data class Candidate(val key: String, val kind: StoryKind, val notability: Notab
  * Country, then a Province, then Towns and Landmarks by Notability. A gap of silence follows every Story, set by
  * Talkativeness. While the driver is standing still only Areas (and Interludes) are told.
  *
- * An Interlude, a Story about an untold part of the Province or Country, fills a long silence: none in Quiet mode,
+ * An Interlude, a Story about an untold part of the Province or Country, fills a long silence: only in Chatty mode,
  * otherwise only after [interludeAfterMillis] (5 minutes) without a Story, counted from the last Story or, if there
  * has been none, from the start of the Trip. After three Interludes in a row that wait doubles, and after six it
  * doubles again; any other Story puts it back. Places and Areas always go first. Immutable.
@@ -50,7 +50,7 @@ data class StoryScheduler private constructor(
     }
 
     private fun interludeIsDue(nowMillis: Long): Boolean {
-        if (talkativeness == Talkativeness.Quiet) return false
+        if (talkativeness != Talkativeness.Chatty) return false
         val doublings = (interludesInARow / INTERLUDES_PER_DOUBLING).coerceAtMost(MAX_DOUBLINGS)
         return nowMillis - (lastEndedMillis ?: startedMillis) >= interludeAfterMillis shl doublings
     }
@@ -60,14 +60,14 @@ data class StoryScheduler private constructor(
     private fun rank(kind: StoryKind): Int = when (kind) {
         StoryKind.Country -> 0
         StoryKind.Province -> 1
-        StoryKind.Town, StoryKind.Landmark -> 2
+        StoryKind.Town, StoryKind.Landmark, StoryKind.Junction -> 2
         StoryKind.Interlude -> 3
     }
 
     private fun gapMillis(talkativeness: Talkativeness): Long = when (talkativeness) {
-        Talkativeness.Quiet -> 5 * 60_000L
-        Talkativeness.Normal -> 60_000L
-        Talkativeness.Chatty -> 20_000L
+        Talkativeness.Names -> 20_000L
+        Talkativeness.Normal -> 5 * 60_000L
+        Talkativeness.Chatty -> 60_000L
     }
 
     companion object {

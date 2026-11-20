@@ -20,7 +20,7 @@ class StoryWriterTest {
 
     private val brief = StoryBrief(
         subjectName = "Kinderdijk", kind = StoryKind.Landmark, source = source,
-        talkativeness = Talkativeness.Normal, relation = Relation.Ahead, earlierStories = emptyList(),
+        talkativeness = Talkativeness.Chatty, relation = Relation.Ahead, earlierStories = emptyList(),
     )
 
     /** A writer whose AI server gives these answers in turn; an exception in the list is a failed request. */
@@ -128,8 +128,8 @@ class StoryWriterTest {
     }
 
     @Test
-    fun `a quiet drive gets no interlude, so nothing is written`() {
-        val interlude = brief.copy(kind = StoryKind.Interlude, talkativeness = Talkativeness.Quiet, relation = null)
+    fun `a normal drive gets no interlude, so nothing is written`() {
+        val interlude = brief.copy(kind = StoryKind.Interlude, talkativeness = Talkativeness.Normal, relation = null)
 
         assertNull(writerAnswering("never asked").write(interlude))
     }

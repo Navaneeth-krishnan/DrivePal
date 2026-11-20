@@ -8,7 +8,16 @@ data class Utterance(
     val story: Boolean = true,
     /** What to call it on screen, such as the name of the town. */
     val title: String = id,
-)
+    /** For the Trip log: what kind of Story it is, and the Wikipedia article it came from (language and title). */
+    val kind: StoryKind? = null,
+    val sourceLanguage: String? = null,
+    val sourceTitle: String? = null,
+    /** Said before the [text], such as "You are entering Eraviperoor." With an empty [text] the name is all that is said. */
+    val announcement: String? = null,
+) {
+    /** Everything that is read aloud, in order. */
+    val spokenText: String get() = listOfNotNull(announcement, text.takeIf { it.isNotBlank() }).joinToString(" ")
+}
 
 /** What became of a Story. Told and Skipped both mean the driver is done with it; the others can come back later. */
 enum class StoryOutcome { Told, Skipped, Interrupted, Dropped }
@@ -182,8 +191,8 @@ data class NarrationController private constructor(
             val number = speaks + 1
             val speakId = "${playing.utterance.id}#$number"
             return NarrationStep(
-                copy(speaks = number, current = playing.copy(speakId = speakId, text = playing.utterance.text, spokenChars = 0)),
-                listOf(NarrationCommand.StopSpeaking, NarrationCommand.Speak(speakId, playing.utterance.text, playing.utterance.language)),
+                copy(speaks = number, current = playing.copy(speakId = speakId, text = playing.utterance.spokenText, spokenChars = 0)),
+                listOf(NarrationCommand.StopSpeaking, NarrationCommand.Speak(speakId, playing.utterance.spokenText, playing.utterance.language)),
             )
         }
         val story = lastStory?.takeIf { paused == null } ?: return NarrationStep(this, emptyList())
@@ -191,8 +200,8 @@ data class NarrationController private constructor(
         val speakId = "${story.id}#$number"
         val focus = if (holdsFocus) emptyList() else listOf(NarrationCommand.RequestFocus)
         return NarrationStep(
-            copy(speaks = number, holdsFocus = true, focusRequested = true, current = Playing(story, speakId, story.text, 0, replay = true)),
-            focus + NarrationCommand.Speak(speakId, story.text, story.language),
+            copy(speaks = number, holdsFocus = true, focusRequested = true, current = Playing(story, speakId, story.spokenText, 0, replay = true)),
+            focus + NarrationCommand.Speak(speakId, story.spokenText, story.language),
         )
     }
 
@@ -210,9 +219,9 @@ data class NarrationController private constructor(
             val number = speaks + 1
             val speakId = "${utterance.id}#$number"
             if (!holdsFocus) commands += NarrationCommand.RequestFocus
-            commands += NarrationCommand.Speak(speakId, utterance.text, utterance.language)
+            commands += NarrationCommand.Speak(speakId, utterance.spokenText, utterance.language)
             return NarrationStep(
-                copy(queue = waiting, speaks = number, holdsFocus = true, focusRequested = true, current = Playing(utterance, speakId, utterance.text, 0, replay = false)),
+                copy(queue = waiting, speaks = number, holdsFocus = true, focusRequested = true, current = Playing(utterance, speakId, utterance.spokenText, 0, replay = false)),
                 commands,
             )
         }

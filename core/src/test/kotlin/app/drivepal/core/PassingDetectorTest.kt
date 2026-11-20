@@ -35,6 +35,30 @@ class PassingDetectorTest {
         assertEquals(emptyList<PassingEvent>(), events)
     }
 
+    private val junction = Subject(
+        id = "junction", name = "Kozhencherry", kind = SubjectKind.Junction,
+        position = ROAD_START.moved(northMeters = 10_000.0, eastMeters = 200.0),
+    )
+
+    @Test
+    fun `a junction is only passed when the road goes right by it, not from three kilometres away`() {
+        val onTheRoad = PassingDetector.watching(listOf(junction)).driven(roadNorth(fromMeters = 0, toMeters = 20_000)).second
+        val far = junction.copy(position = ROAD_START.moved(northMeters = 10_000.0, eastMeters = 1_000.0))
+        val offTheRoad = PassingDetector.watching(listOf(far)).driven(roadNorth(fromMeters = 0, toMeters = 20_000)).second
+
+        assertEquals(listOf<PassingEvent>(PassingEvent.Passing(junction)), onTheRoad)
+        assertEquals(emptyList<PassingEvent>(), offTheRoad)
+    }
+
+    @Test
+    fun `a junction is no longer relevant once it is half a kilometre behind`() {
+        val atTheJunction = PassingDetector.watching(listOf(junction)).driven(roadNorth(fromMeters = 0, toMeters = 10_000)).first
+        val pastIt = atTheJunction.driven(roadNorth(fromMeters = 10_040, toMeters = 10_600)).first
+
+        assertEquals(listOf(junction), atTheJunction.relevantSubjects)
+        assertEquals(emptyList<Subject>(), pastIt.relevantSubjects)
+    }
+
     @Test
     fun `a landmark is relevant while within three kilometres and drops out once left behind`() {
         val atTheCastle = PassingDetector.watching(listOf(castle))

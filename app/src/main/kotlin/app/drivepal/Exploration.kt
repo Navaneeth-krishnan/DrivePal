@@ -17,10 +17,12 @@ import app.drivepal.core.StoryDirector
 import app.drivepal.core.StoryKind
 import app.drivepal.core.StoryOutcome
 import app.drivepal.core.StoryResult
+import app.drivepal.core.announcement
 import app.drivepal.core.StoryScheduler
 import app.drivepal.core.StoryWriter
 import app.drivepal.core.Subject
 import app.drivepal.core.SubjectFinder
+import app.drivepal.core.SubjectKind
 import app.drivepal.core.Talkativeness
 import app.drivepal.core.ToldStore
 import app.drivepal.core.Utterance
@@ -89,11 +91,17 @@ class Exploration(
         update.detector.headingDegrees?.let { heading ->
             show { it.copy(headingDegrees = heading.toFloat()) }
         }
-        update.events.forEach { event -> lookups.execute { guarded { lookUp(event.subject) } } }
+        update.events.forEach { event ->
+            if (hasNoSource(event.subject)) director.placeFound(event.subject) else lookups.execute { guarded { lookUp(event.subject) } }
+        }
         retryFailedLookups()
         loadAround(position)
         conduct(standstill)
     }
+
+    /** A Junction, or a village the map links to no article: only its name can be said. */
+    private fun hasNoSource(subject: Subject) =
+        subject.kind == SubjectKind.Junction || (subject.wikipediaTag == null && subject.wikidataId == null)
 
     /** Whether the Story with this id is still worth telling. Main thread only. */
     fun isRelevant(utteranceId: String): Boolean = director.isRelevant(utteranceId)
@@ -130,7 +138,7 @@ class Exploration(
     private fun startWriting(pick: Pick) {
         writing = true
         // Whether a place is ahead or behind is judged now, as its Story is about to be told.
-        val relation = if (pick.kind == StoryKind.Town || pick.kind == StoryKind.Landmark) {
+        val relation = if (pick.kind == StoryKind.Town || pick.kind == StoryKind.Landmark || pick.kind == StoryKind.Junction) {
             if (detector.isAhead(pick.subject)) Relation.Ahead else Relation.Behind
         } else {
             null
@@ -151,14 +159,25 @@ class Exploration(
     }
 
     private fun write(pick: Pick, relation: Relation?, earlier: List<String>, talk: Talkativeness): Utterance? {
-        val brief = StoryBrief(pick.subject.name, pick.kind, pick.source, talk, relation, earlier)
+        val announced = announcement(pick.kind, pick.subject.name, relation)
+        val source = pick.source
+        if (pick.announceOnly || source == null) {
+            // Names mode, or nothing to tell about this place: just say where we are, without asking the AI.
+            return Utterance(pick.key, "", "en", title = pick.title, kind = pick.kind, announcement = announced)
+        }
+        val brief = StoryBrief(pick.subject.name, pick.kind, source, talk, relation, earlier)
         val result = writer.write(brief) ?: return null
         show { ui -> ui.copy(stories = (listOf(describeStory(pick.subject.copy(name = pick.title), result)) + ui.stories).take(MAX_STORIES)) }
         val (text, language) = when (result) {
             is StoryResult.Written -> result.text to "en"
             is StoryResult.Fallback -> result.text to result.language
         }
-        return Utterance(pick.key, text, language, title = pick.title)
+        return Utterance(
+            pick.key, text, language, title = pick.title,
+            kind = pick.kind, sourceLanguage = pick.articleLanguage, sourceTitle = pick.articleTitle,
+            // The announcement is English: not read out in front of an article that fell back to another language.
+            announcement = announced.takeIf { language == "en" },
+        )
     }
 
     private fun loadAround(position: Position) {

@@ -39,6 +39,21 @@ class SubjectFinderTest {
     }
 
     @Test
+    fun `a named junction and a village without an article are subjects that can only be announced`() {
+        val finder = SubjectFinder(overpass = { ANNOUNCE_ONLY_RESPONSE }, clockMillis = { 0 })
+
+        val subjects = finder.around(insideTile)
+
+        assertEquals(
+            listOf(
+                Subject(id = "node/5005", name = "Kozhencherry", kind = SubjectKind.Junction, position = Position(52.03, 4.03)),
+                Subject(id = "node/6006", name = "Eraviperoor", kind = SubjectKind.Town, position = Position(52.04, 4.04)),
+            ),
+            subjects,
+        )
+    }
+
+    @Test
     fun `driving back through an area already seen does not ask Overpass again`() {
         var requests = 0
         val finder = SubjectFinder(overpass = { requests++; OVERPASS_RESPONSE }, clockMillis = { 0 })
@@ -239,6 +254,16 @@ class SubjectFinderTest {
         assertEquals("HTTP 502 from overpass-api.de; Wikipedia geosearch: HTTP 429 from en.wikipedia.org", found.problem)
     }
 }
+
+/** A named junction, an unnamed one (ignored), a village with no Wikipedia link, and an unnamed village (ignored). */
+private const val ANNOUNCE_ONLY_RESPONSE = """
+{"version":0.6,"elements":[
+ {"type":"node","id":5005,"lat":52.03,"lon":4.03,"tags":{"highway":"motorway_junction","name":"Kozhencherry","ref":"12"}},
+ {"type":"node","id":5006,"lat":52.031,"lon":4.031,"tags":{"highway":"motorway_junction","ref":"13"}},
+ {"type":"node","id":6006,"lat":52.04,"lon":4.04,"tags":{"place":"village","name":"Eraviperoor"}},
+ {"type":"node","id":6007,"lat":52.041,"lon":4.041,"tags":{"place":"village"}}
+]}
+"""
 
 /** Shaped like a real Overpass `out center tags` response. The plaque has no Wikipedia link and is ignored. */
 private const val OVERPASS_RESPONSE = """

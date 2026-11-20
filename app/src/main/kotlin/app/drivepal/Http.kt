@@ -114,7 +114,8 @@ object OverpassHttp : OverpassClient {
             withWikiLink.joinToString("") { """nwr["historic"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["tourism"~"^(attraction|viewpoint|museum)$"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["man_made"~"^(lighthouse|windmill)$"]["name"]["$it"]$area;""" } +
-            withWikiLink.joinToString("") { """nwr["place"~"^(city|town|village)$"]["name"]["$it"]$area;""" } +
+            """nwr["place"~"^(city|town|village)$"]["name"]$area;""" + // with or without an article: announced by name
+            """node["highway"="motorway_junction"]["name"]$area;""" +
             ");out center tags;"
         return request(BuildConfig.OVERPASS_URL, body = "data=${encode(query)}")
     }
@@ -156,14 +157,13 @@ object WikidataHttp : WikidataClient {
     }
 }
 
-/** The AI server that writes the Stories (any OpenAI-compatible `/chat/completions` endpoint). */
-object AiHttp : ChatTransport {
-    private const val AI_READ_TIMEOUT_MILLIS = 90_000 // a local model's first answer can take 15 s or more
-
+/** The AI server that writes the Stories (any OpenAI-compatible `/chat/completions` endpoint), as currently set up. */
+class AiHttp(private val connection: () -> AiConnection) : ChatTransport {
     override fun post(requestJson: String): String {
-        val url = BuildConfig.AI_BASE_URL.trimEnd('/') + "/chat/completions"
+        val now = connection()
+        val url = now.settings.chatUrl()
         // The key goes only over an encrypted connection; a local Ollama over plain HTTP needs none.
-        val key = BuildConfig.AI_API_KEY.takeIf { it.isNotBlank() && url.startsWith("https://") }
+        val key = now.apiKey?.takeIf { it.isNotBlank() && url.startsWith("https://") }
         return request(
             url = url,
             body = requestJson,
@@ -172,5 +172,9 @@ object AiHttp : ChatTransport {
             readTimeoutMillis = AI_READ_TIMEOUT_MILLIS,
             userAgent = "DrivePal/0.1", // the AI provider has no use for the optional contact
         )
+    }
+
+    private companion object {
+        const val AI_READ_TIMEOUT_MILLIS = 90_000 // a local model's first answer can take 15 s or more
     }
 }

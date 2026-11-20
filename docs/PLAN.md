@@ -35,9 +35,11 @@
 
   | | Gap | Landmark | Town | Country/Province | Interlude |
   |---|---|---|---|---|---|
-  | **Quiet** | ~5 min | ~20–30 s | ~30 s | ~45 s | none |
-  | **Normal** (default) | ~1 min | ~30–45 s | ~45–60 s | ~60–90 s | ~60–90 s |
-  | **Chatty** | ~20 s | ~45–60 s | ~60–75 s | ~90–120 s | ~90–120 s |
+  | **Names** | ~20 s | name only | name only | name only | none |
+  | **Normal** (default) | ~5 min | ~20–30 s | ~30 s | ~45 s | none |
+  | **Chatty** | ~1 min | ~30–45 s | ~45–60 s | ~60–90 s | ~60–90 s |
+
+- **Announcements:** every place is announced before its Story, in every mode, in one line ("You are entering Eraviperoor", "Coming up: Kortlandse Molen", "Approaching Kozhencherry junction"; "You just passed…" once it is behind). In Names mode that line is all there is. Named motorway junctions and towns or villages without an article are announced too, by name only. A name said on its own is remembered apart from the Story, so Names mode never uses up a Story. An article that fell back to another language is read without the announcement.
 
 - **Interludes:** after 3 in a row with nothing else in between, the Interlude gap doubles (5 → 10 → 20 min). When nothing untold is left, DrivePal stays silent.
 

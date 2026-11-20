@@ -75,10 +75,18 @@ A single spoken question after about 30 minutes without driving speed, asking th
 _Avoid_: Timeout, auto-stop, idle check
 
 **Talkativeness**:
-How much DrivePal talks on a Trip: Quiet, Normal (the default) or Chatty. It sets both the minimum gap between Stories and how long each Story is; Quiet also means no Interludes.
+How much DrivePal talks on a Trip: Names (only the Announcements), Normal (the default) or Chatty. It sets both the minimum gap between Stories and how long each Story is; only Chatty has Interludes.
 _Avoid_: Frequency, verbosity, chattiness, mode
 
 ### Stories
+
+**Announcement**:
+The one line that says which place the driver is at ("You are entering Eraviperoor"), spoken before a Story, or on its own in Names mode. It states no facts about the place. Junctions are only ever announced.
+_Avoid_: Intro, heading, lead-in
+
+**Junction**:
+A named point on the road, such as a motorway exit, that the driver passes. It has no Source, so it gets an Announcement and no Story.
+_Avoid_: Exit, crossing, intersection
 
 **Story**:
 A short spoken narration about one Area or Landmark. Every factual claim in it comes from its Source, and legends appear only if the Source reports them, told as legends.
