@@ -5,6 +5,13 @@ import android.os.Looper
 import android.os.SystemClock
 import app.drivepal.core.AreaTracker
 import app.drivepal.core.PassingDetector
+import app.drivepal.core.Relation
+import app.drivepal.core.Source
+import app.drivepal.core.StoryBrief
+import app.drivepal.core.StoryKind
+import app.drivepal.core.StoryWriter
+import app.drivepal.core.SubjectKind
+import app.drivepal.core.Talkativeness
 import app.drivepal.core.Position
 import app.drivepal.core.SourceLibrary
 import app.drivepal.core.SourceLookup
@@ -22,12 +29,18 @@ import java.util.concurrent.atomic.AtomicInteger
  * - **loader**: the [AreaTracker] and the [SubjectFinder] (Nominatim and Overpass). Slow; results are
  *   handed back to the main thread.
  * - **lookups**: Source lookups (Wikipedia and Wikidata) for Passed subjects, and retries of the failed ones.
+ * - **writers**: the AI server writing a Story for each subject that has a Source. Slow, so it has its own thread.
  */
-class Exploration(private val finder: SubjectFinder, private val sources: SourceLibrary) {
+class Exploration(
+    private val finder: SubjectFinder,
+    private val sources: SourceLibrary,
+    private val writer: StoryWriter,
+) {
 
     private val handler = Handler(Looper.getMainLooper())
     private val loader = Executors.newSingleThreadExecutor()
     private val lookups = Executors.newSingleThreadExecutor()
+    private val writers = Executors.newSingleThreadExecutor()
     @Volatile private var stopped = false
 
     private var detector = PassingDetector.watching(emptyList()) // main thread
@@ -38,6 +51,8 @@ class Exploration(private val finder: SubjectFinder, private val sources: Source
     private var retrying: List<Subject> = emptyList() // lookups thread
     private val retryCount = AtomicInteger(0)
     private val retryQueued = AtomicBoolean(false)
+
+    private var told: List<String> = emptyList() // writers thread: names of subjects already told, for Framing
 
     /** Called on the main thread for every GPS position. */
     fun onPosition(position: Position) {
@@ -57,6 +72,7 @@ class Exploration(private val finder: SubjectFinder, private val sources: Source
         stopped = true
         loader.shutdownNow()
         lookups.shutdownNow()
+        writers.shutdownNow()
     }
 
     private fun loadAround(position: Position) {
@@ -85,6 +101,23 @@ class Exploration(private val finder: SubjectFinder, private val sources: Source
             retryCount.set(retrying.size)
         }
         say(describePassing(subject, lookup))
+        if (lookup is SourceLookup.Found) requestStory(subject, lookup.source)
+    }
+
+    /** Asks the AI for a Story. Whether the subject is ahead or behind is judged now, as the Story is about to be told. */
+    private fun requestStory(subject: Subject, source: Source) {
+        post {
+            val relation = if (detector.isAhead(subject)) Relation.Ahead else Relation.Behind
+            writers.execute { guarded { writeStory(subject, source, relation) } }
+        }
+    }
+
+    private fun writeStory(subject: Subject, source: Source, relation: Relation) {
+        val kind = if (subject.kind == SubjectKind.Town) StoryKind.Town else StoryKind.Landmark
+        val brief = StoryBrief(subject.name, kind, source, Talkativeness.Normal, relation, told.takeLast(EARLIER_STORIES_OFFERED))
+        val result = writer.write(brief) ?: return
+        told = told + subject.name
+        show { ui -> ui.copy(stories = (listOf(describeStory(subject, result)) + ui.stories).take(MAX_STORIES)) }
     }
 
     /** Asks again for Passed subjects whose lookup failed, while they are still close enough to matter. */
@@ -110,7 +143,10 @@ class Exploration(private val finder: SubjectFinder, private val sources: Source
             when (lookup) {
                 null -> say("Gave up on ${subject.name}: left behind before its Source could be looked up")
                 is SourceLookup.Unavailable -> Unit
-                else -> say(describePassing(subject, lookup))
+                else -> {
+                    say(describePassing(subject, lookup))
+                    if (lookup is SourceLookup.Found) requestStory(subject, lookup.source)
+                }
             }
         }
     }
@@ -139,5 +175,7 @@ class Exploration(private val finder: SubjectFinder, private val sources: Source
 
     private companion object {
         const val MAX_HAPPENINGS = 8
+        const val MAX_STORIES = 5
+        const val EARLIER_STORIES_OFFERED = 3
     }
 }

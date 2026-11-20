@@ -86,6 +86,7 @@ private fun TripScreen(ui: TripUi) {
                 Text("I'm still on the road")
             }
         }
+        ui.stories.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
         ui.happenings.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
         if (ui.running) {
             OutlinedButton(onClick = { send(context, TripService.ACTION_STOP) }) { Text("Stop Trip") }
@@ -103,14 +104,15 @@ private fun describe(ui: TripUi): String = when {
 }
 
 // Android 12+ ignores a request for FINE location unless COARSE is requested with it.
-private fun neededPermissions(): Array<String> {
-    val location = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        location + Manifest.permission.POST_NOTIFICATIONS
-    } else {
-        location
-    }
-}
+private fun neededPermissions(): Array<String> = buildList {
+    add(Manifest.permission.ACCESS_FINE_LOCATION)
+    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+    if (Build.VERSION.SDK_INT >= ANDROID_17 && aiServerIsOnLocalNetwork()) add(ACCESS_LOCAL_NETWORK)
+}.toTypedArray()
+
+private const val ANDROID_17 = 37
+private const val ACCESS_LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK"
 
 private fun openAppSettings(context: Context) {
     context.startActivity(

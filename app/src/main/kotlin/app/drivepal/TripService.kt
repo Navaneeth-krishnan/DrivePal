@@ -20,9 +20,12 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import app.drivepal.core.ChatClient
+import app.drivepal.core.ChatSettings
 import app.drivepal.core.Fix
 import app.drivepal.core.Position
 import app.drivepal.core.SourceLibrary
+import app.drivepal.core.StoryWriter
 import app.drivepal.core.SubjectFinder
 import app.drivepal.core.TripMonitor
 import app.drivepal.core.TripState
@@ -108,7 +111,7 @@ class TripService : Service() {
             return
         }
         monitor = TripMonitor.start(SystemClock.elapsedRealtime())
-        exploration = Exploration(finder, sources)
+        exploration = Exploration(finder, sources, writer)
         shownState = TripState.Driving
         TripSession.update { TripUi(running = true, state = TripState.Driving) }
         handler.postDelayed(tick, TICK_MILLIS)
@@ -238,5 +241,11 @@ class TripService : Service() {
         // Process-wide so that what has been looked up is remembered from one Trip to the next.
         private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime)
         private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)
+        private val writer = StoryWriter(
+            ChatClient(
+                AiHttp,
+                ChatSettings(model = BuildConfig.AI_MODEL, reasoningEffort = BuildConfig.AI_REASONING_EFFORT.ifBlank { null }),
+            ),
+        )
     }
 }

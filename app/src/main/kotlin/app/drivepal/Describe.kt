@@ -1,6 +1,7 @@
 package app.drivepal
 
 import app.drivepal.core.AreaEvent
+import app.drivepal.core.StoryResult
 import app.drivepal.core.Subject
 import app.drivepal.core.SourceLookup
 
@@ -19,4 +20,9 @@ fun describePassing(subject: Subject, lookup: SourceLookup): String {
         SourceLookup.NotStoryWorthy -> "Passing $what: no Story (no article, or too thin)"
         is SourceLookup.Unavailable -> "Passing $what: Source lookup failed (${lookup.reason}), will retry"
     }
+}
+
+fun describeStory(subject: Subject, result: StoryResult): String = when (result) {
+    is StoryResult.Written -> "${subject.name}: ${result.text}"
+    is StoryResult.Fallback -> "${subject.name} (the article itself, because: ${result.reason}): ${result.text}"
 }

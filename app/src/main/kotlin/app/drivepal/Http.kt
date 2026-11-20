@@ -2,6 +2,7 @@ package app.drivepal
 
 import android.os.SystemClock
 import app.drivepal.core.BoundingBox
+import app.drivepal.core.ChatTransport
 import app.drivepal.core.NominatimClient
 import app.drivepal.core.OverpassClient
 import app.drivepal.core.Position
@@ -43,7 +44,15 @@ private fun waitYourTurn() = synchronized(spacing) {
     lastRequestAtMillis = SystemClock.elapsedRealtime()
 }
 
-private fun request(url: String, formBody: String? = null): String {
+private const val FORM = "application/x-www-form-urlencoded"
+
+private fun request(
+    url: String,
+    body: String? = null,
+    contentType: String = FORM,
+    headers: Map<String, String> = emptyMap(),
+    readTimeoutMillis: Int = READ_TIMEOUT_MILLIS,
+): String {
     val host = URL(url).host
     val now = SystemClock.elapsedRealtime()
     coolDownUntilMillis[host]?.takeIf { now < it }?.let {
@@ -53,14 +62,15 @@ private fun request(url: String, formBody: String? = null): String {
     val connection = URL(url).openConnection() as HttpURLConnection
     try {
         connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
-        connection.readTimeout = READ_TIMEOUT_MILLIS
+        connection.readTimeout = readTimeoutMillis
         connection.instanceFollowRedirects = false
         connection.setRequestProperty("User-Agent", USER_AGENT)
-        if (formBody != null) {
+        headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+        if (body != null) {
             connection.requestMethod = "POST"
             connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            connection.outputStream.use { it.write(formBody.toByteArray(Charsets.UTF_8)) }
+            connection.setRequestProperty("Content-Type", contentType)
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
         }
         val code = connection.responseCode
         if (code == 429 || code == 503) {
@@ -102,7 +112,7 @@ object OverpassHttp : OverpassClient {
             withWikiLink.joinToString("") { """nwr["man_made"~"^(lighthouse|windmill)$"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["place"~"^(city|town|village)$"]["name"]["$it"]$area;""" } +
             ");out center tags;"
-        return request(BuildConfig.OVERPASS_URL, formBody = "data=${encode(query)}")
+        return request(BuildConfig.OVERPASS_URL, body = "data=${encode(query)}")
     }
 }
 
@@ -134,4 +144,17 @@ object WikidataHttp : WikidataClient {
         require(ITEM_ID.matches(wikidataId)) { "Unexpected Wikidata id" }
         return request("https://www.wikidata.org/w/api.php?action=wbgetentities&props=sitelinks&format=json&ids=$wikidataId")
     }
+}
+
+/** The AI server that writes the Stories (any OpenAI-compatible `/chat/completions` endpoint). */
+object AiHttp : ChatTransport {
+    private const val AI_READ_TIMEOUT_MILLIS = 90_000 // a local model's first answer can take 15 s or more
+
+    override fun post(requestJson: String): String = request(
+        url = BuildConfig.AI_BASE_URL.trimEnd('/') + "/chat/completions",
+        body = requestJson,
+        contentType = "application/json",
+        headers = if (BuildConfig.AI_API_KEY.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer ${BuildConfig.AI_API_KEY}"),
+        readTimeoutMillis = AI_READ_TIMEOUT_MILLIS,
+    )
 }

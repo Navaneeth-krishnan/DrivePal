@@ -25,6 +25,17 @@ android {
         // would identify you in every request. Nothing is built in. Keep it plain ASCII.
         val contact = providers.gradleProperty("drivepal.contact").orElse("").get()
         buildConfigField("String", "CONTACT", "\"$contact\"")
+
+        // The AI that writes the Stories: any OpenAI-compatible server. The default is Ollama on the development
+        // computer, as seen from the Android emulator. Override with -Pdrivepal.aiUrl=, -Pdrivepal.aiModel=,
+        // -Pdrivepal.aiKey= and -Pdrivepal.aiReasoningEffort= (empty = leave the field out, for providers that
+        // reject it). Put the key in ~/.gradle/gradle.properties, never in this repository. It ends up inside the
+        // APK, which is fine for a personal build and not for a published one.
+        fun setting(name: String, default: String) = providers.gradleProperty(name).orElse(default).get()
+        buildConfigField("String", "AI_BASE_URL", "\"${setting("drivepal.aiUrl", "http://10.0.2.2:11434/v1")}\"")
+        buildConfigField("String", "AI_MODEL", "\"${setting("drivepal.aiModel", "gemma4:e4b")}\"")
+        buildConfigField("String", "AI_API_KEY", "\"${setting("drivepal.aiKey", "")}\"")
+        buildConfigField("String", "AI_REASONING_EFFORT", "\"${setting("drivepal.aiReasoningEffort", "none")}\"")
     }
 
     buildFeatures {
