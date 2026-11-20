@@ -64,6 +64,14 @@ class StoryPromptTest {
     }
 
     @Test
+    fun `the model is told to vary its openings and not to start with the same stock phrase every time`() {
+        val rules = system(brief())
+
+        assertTrue("Keep your eyes on the road" in rules)
+        assertTrue("different way" in rules)
+    }
+
+    @Test
     fun `the article, its language and its title are handed over as the source`() {
         val message = user(brief())
 

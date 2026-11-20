@@ -5,9 +5,11 @@ import app.drivepal.core.BoundingBox
 import app.drivepal.core.ChatTransport
 import app.drivepal.core.NominatimClient
 import app.drivepal.core.OverpassClient
+import app.drivepal.core.PhotonClient
 import app.drivepal.core.Position
 import app.drivepal.core.WikidataClient
 import app.drivepal.core.WikipediaClient
+import app.drivepal.core.WikipediaGeoSearchClient
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -121,6 +123,21 @@ object NominatimHttp : NominatimClient {
     override fun reverse(position: Position): String = request(
         "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=5&addressdetails=1&accept-language=en" +
             "&lat=${degrees(position.latitude, decimals = 2)}&lon=${degrees(position.longitude, decimals = 2)}",
+    )
+}
+
+object PhotonHttp : PhotonClient {
+    // The fallback for Nominatim. The same blurring to about a kilometre: only the province is needed.
+    override fun reverse(position: Position): String = request(
+        "https://photon.komoot.io/reverse?lang=en&lat=${degrees(position.latitude, decimals = 2)}&lon=${degrees(position.longitude, decimals = 2)}",
+    )
+}
+
+object WikipediaGeoSearchHttp : WikipediaGeoSearchClient {
+    // The fallback for Overpass: the English Wikipedia articles about places near the middle of a map tile.
+    override fun search(center: Position, radiusMeters: Int): String = request(
+        "https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gslimit=100&format=json&formatversion=2" +
+            "&gscoord=${degrees(center.latitude)}%7C${degrees(center.longitude)}&gsradius=$radiusMeters",
     )
 }
 

@@ -64,6 +64,7 @@ object StoryPrompt {
         appendLine("- Include a legend or tall tale only if the SOURCE itself reports it, and tell it as a legend.")
         appendLine("- The SOURCE may be in another language. Write the Story in English.")
         appendLine("- The storytelling lives in the telling: a hook, pacing, vivid wording. You may add atmosphere and speak to the driver, but no new facts.")
+        appendLine("- The driver hears many Stories in a row. Open each one in a different way: never begin with a stock phrase such as \"Keep your eyes on the road\", \"As we drive\" or \"Look\". Start with the most striking fact instead.")
         appendLine("- Never say whether something is to the left or right, or which side of the road it is on: you do not know.")
         appendLine("- Plain spoken prose only: no stage directions, no parentheses, no markdown, no lists, no headings, no emoji.")
         appendLine("- Length: between ${words.first} and ${words.last} words. A shorter Story is fine if the SOURCE has little to say. Never pad it with invented facts.")

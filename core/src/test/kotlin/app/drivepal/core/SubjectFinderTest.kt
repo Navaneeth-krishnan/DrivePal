@@ -150,6 +150,94 @@ class SubjectFinderTest {
 
         assertEquals(true, requests <= 12)
     }
+
+    private fun realGeoSearch() = SubjectFinderTest::class.java.getResource("/real/wikipedia-geosearch-en-kinderdijk.json")!!.readText()
+
+    @Test
+    fun `when Overpass is down the articles Wikipedia knows near the tile become the subjects`() {
+        val finder = SubjectFinder(
+            overpass = { throw java.io.IOException("HTTP 502 from overpass-api.de") },
+            clockMillis = { 0 },
+            geoSearch = { _, _ -> realGeoSearch() },
+        )
+
+        val found = finder.subjectsAround(insideTile)
+
+        assertEquals(66, found.subjects.size)
+        assertEquals(
+            Subject(
+                id = "en.wikipedia/74962141", name = "Nederwaard Molen No.1", kind = SubjectKind.Landmark,
+                position = Position(51.884694, 4.639361), wikipediaTag = "en:Nederwaard Molen No.1", wikidataId = null,
+            ),
+            found.subjects.single { it.id == "en.wikipedia/74962141" },
+        )
+        assertEquals("Overpass failed (HTTP 502 from overpass-api.de); using Wikipedia's map search instead", found.problem)
+    }
+
+    @Test
+    fun `a bracketed note in an article title is not spoken as part of the name`() {
+        val finder = SubjectFinder(
+            overpass = { throw java.io.IOException("down") },
+            clockMillis = { 0 },
+            geoSearch = { _, _ -> realGeoSearch() },
+        )
+
+        val lek = finder.subjectsAround(insideTile).subjects.single { it.id == "en.wikipedia/236578" }
+
+        assertEquals("Lek", lek.name)
+        assertEquals("en:Lek (river)", lek.wikipediaTag)
+    }
+
+    @Test
+    fun `Wikipedia is left alone while Overpass works`() {
+        var searches = 0
+        val finder = SubjectFinder(
+            overpass = { OVERPASS_RESPONSE },
+            clockMillis = { 0 },
+            geoSearch = { _, _ -> searches++; realGeoSearch() },
+        )
+
+        finder.subjectsAround(insideTile)
+
+        assertEquals(0, searches)
+    }
+
+    @Test
+    fun `a tile served by the fallback is tried against Overpass again after five minutes and the full data wins`() {
+        var nowMillis = 0L
+        var overpassIsDown = true
+        val finder = SubjectFinder(
+            overpass = { if (overpassIsDown) throw java.io.IOException("down") else OVERPASS_RESPONSE },
+            clockMillis = { nowMillis },
+            geoSearch = { _, _ -> realGeoSearch() },
+        )
+
+        val whileDown = finder.subjectsAround(insideTile)
+        overpassIsDown = false
+        nowMillis = 4 * 60_000
+        val stillFallback = finder.subjectsAround(insideTile)
+        nowMillis = 5 * 60_000 + 1
+        val afterwards = finder.subjectsAround(insideTile)
+
+        assertEquals(66, whileDown.subjects.size)
+        assertEquals(66, stillFallback.subjects.size)
+        assertEquals(3, afterwards.subjects.size)
+        assertEquals(null, afterwards.problem)
+    }
+
+    @Test
+    fun `when both are down one problem says why for each`() {
+        val finder = SubjectFinder(
+            overpass = { throw java.io.IOException("HTTP 502 from overpass-api.de") },
+            clockMillis = { 0 },
+            geoSearch = { _, _ -> throw java.io.IOException("HTTP 429 from en.wikipedia.org") },
+        )
+
+        val found = finder.subjectsAround(insideTile)
+
+        assertEquals(emptyList<Subject>(), found.subjects)
+        assertEquals("HTTP 502 from overpass-api.de; Wikipedia geosearch: HTTP 429 from en.wikipedia.org", found.problem)
+    }
 }
 
 /** Shaped like a real Overpass `out center tags` response. The plaque has no Wikipedia link and is ignored. */

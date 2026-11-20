@@ -122,6 +122,70 @@ class AreaTrackerTest {
         assertEquals("HTTP 503 from nominatim.openstreetmap.org", whileDown.problem)
         assertEquals(null, afterwards.problem)
     }
+
+    private val hollandAndNetherlands = listOf<AreaEvent>(
+        AreaEvent.EnteredCountry("Netherlands"), AreaEvent.EnteredProvince("South Holland"),
+    )
+
+    private fun realPhoton() = AreaTrackerTest::class.java.getResource("/real/photon-reverse-kinderdijk.json")!!.readText()
+
+    @Test
+    fun `when Nominatim is down Photon names the country and province instead`() {
+        val tracker = AreaTracker.starting(
+            nominatim = { throw java.io.IOException("HTTP 503 from nominatim.openstreetmap.org") },
+            clockMillis = { 0 },
+            fallback = { realPhoton() },
+        )
+
+        val update = tracker.withPosition(start)
+
+        assertEquals(hollandAndNetherlands, update.events)
+        assertEquals(null, update.problem)
+    }
+
+    @Test
+    fun `when Nominatim cannot place the position Photon is asked`() {
+        val tracker = AreaTracker.starting(
+            nominatim = { """{"error":"Unable to geocode"}""" },
+            clockMillis = { 0 },
+            fallback = { realPhoton() },
+        )
+
+        assertEquals(hollandAndNetherlands, tracker.withPosition(start).events)
+    }
+
+    @Test
+    fun `Photon is left alone while Nominatim works`() {
+        var photonRequests = 0
+        val tracker = AreaTracker.starting(
+            nominatim = { SOUTH_HOLLAND },
+            clockMillis = { 0 },
+            fallback = { photonRequests++; realPhoton() },
+        )
+
+        tracker.withPosition(start)
+
+        assertEquals(0, photonRequests)
+    }
+
+    @Test
+    fun `when both are down one problem says why for each, and neither is asked again for thirty seconds`() {
+        var requests = 0
+        var nowMillis = 0L
+        val tracker = AreaTracker.starting(
+            nominatim = { requests++; throw java.io.IOException("HTTP 503 from nominatim.openstreetmap.org") },
+            clockMillis = { nowMillis },
+            fallback = { requests++; throw java.io.IOException("HTTP 429 from photon.komoot.io") },
+        )
+
+        val first = tracker.withPosition(start)
+        nowMillis = 10_000
+        first.tracker.withPosition(threeAndAHalfKilometresOn)
+
+        assertEquals(emptyList<AreaEvent>(), first.events)
+        assertEquals("HTTP 503 from nominatim.openstreetmap.org; Photon: HTTP 429 from photon.komoot.io", first.problem)
+        assertEquals(2, requests)
+    }
 }
 
 /** Shaped like a real Nominatim `reverse?format=jsonv2&addressdetails=1&zoom=5` response. */

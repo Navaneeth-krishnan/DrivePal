@@ -3,6 +3,7 @@ package app.drivepal.core
 import java.io.IOException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -50,7 +51,33 @@ private val NON_WIKIPEDIA_SITES = setOf(
 )
 
 /** The MediaWiki API reports errors such as "ratelimited" with HTTP 200 and an `error` object. */
-private fun failOnApiError(root: kotlinx.serialization.json.JsonObject) {
+internal fun failOnApiError(root: kotlinx.serialization.json.JsonObject) {
     val error = root["error"]?.jsonObject ?: return
     throw IOException("Wikimedia API error: ${error["code"]?.jsonPrimitive?.contentOrNull ?: "unknown"}")
+}
+
+/**
+ * Reads a Wikipedia `list=geosearch` response into subjects. The article is the Source, so the subject
+ * carries its English Wikipedia tag. Nothing says whether it is a Town or a Landmark, so it counts as a Landmark.
+ * A bracketed note in the title ("Lek (river)") is not part of the name.
+ */
+internal fun parseGeoSearch(json: String): List<Subject> {
+    val root = Json.parseToJsonElement(json).jsonObject
+    failOnApiError(root)
+    val results = root["query"]?.jsonObject?.get("geosearch")?.jsonArray ?: return emptyList()
+    return results.mapNotNull { result ->
+        val article = result.jsonObject
+        val pageId = article["pageid"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+        val title = article["title"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+        val latitude = article["lat"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
+        val longitude = article["lon"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
+        Subject(
+            id = "en.wikipedia/$pageId",
+            name = title.substringBefore(" ("),
+            kind = SubjectKind.Landmark,
+            position = Position(latitude, longitude),
+            wikipediaTag = "en:$title",
+            wikidataId = null,
+        )
+    }
 }

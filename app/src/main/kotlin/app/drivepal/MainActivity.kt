@@ -86,10 +86,12 @@ private fun TripScreen(ui: TripUi) {
                 Text("I'm still on the road")
             }
         }
-        if (DebugDrive.available && ui.running) {
-            OutlinedButton(onClick = {
-                DebugDrive.start(context)?.let { message -> TripSession.update { it.copy(notice = message) } }
-            }) { Text("Simulate the Kinderdijk drive (debug)") }
+        if (ui.running) {
+            DebugDrive.routes.forEach { route ->
+                OutlinedButton(onClick = {
+                    DebugDrive.start(context, route)?.let { message -> TripSession.update { it.copy(notice = message) } }
+                }) { Text("Simulate: $route (debug)") }
+            }
         }
         if (ui.running) {
             OutlinedButton(onClick = { send(context, TripService.ACTION_STOP) }) { Text("Stop Trip") }

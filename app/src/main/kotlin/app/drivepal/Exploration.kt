@@ -48,7 +48,7 @@ class Exploration(
 
     private var detector = PassingDetector.watching(emptyList()) // main thread
 
-    private var areaTracker = AreaTracker.starting(NominatimHttp, SystemClock::elapsedRealtime) // loader thread
+    private var areaTracker = AreaTracker.starting(NominatimHttp, SystemClock::elapsedRealtime, PhotonHttp) // loader thread
     private val loading = AtomicBoolean(false)
 
     private var retrying: List<Subject> = emptyList() // lookups thread

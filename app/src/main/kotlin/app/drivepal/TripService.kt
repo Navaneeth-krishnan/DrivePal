@@ -267,7 +267,7 @@ class TripService : Service() {
         private const val QUESTION = "Still on the road? Press play to keep going."
 
         // Process-wide so that what has been looked up is remembered from one Trip to the next.
-        private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime)
+        private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime, WikipediaGeoSearchHttp)
         private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)
         private val writer = StoryWriter(
             ChatClient(
