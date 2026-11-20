@@ -51,7 +51,7 @@ _Avoid_: Popularity, importance, score
 ### Trips
 
 **Trip**:
-One drive, from when the driver starts DrivePal until they stop it.
+One drive, from when the driver starts DrivePal until they stop it. Whatever surrounds the driver at the start (the Area, the Towns and Landmarks within range) counts as already there: nothing is entered or Passed at the start.
 _Avoid_: Drive, session, journey, ride
 
 **Told**:

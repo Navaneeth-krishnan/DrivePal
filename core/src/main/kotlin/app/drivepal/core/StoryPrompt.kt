@@ -68,6 +68,9 @@ object StoryPrompt {
         appendLine("- Never say whether something is to the left or right, or which side of the road it is on: you do not know.")
         appendLine("- Plain spoken prose only: no stage directions, no parentheses, no markdown, no lists, no headings, no emoji.")
         appendLine("- Length: between ${words.first} and ${words.last} words. A shorter Story is fine if the SOURCE has little to say. Never pad it with invented facts.")
+        if (brief.kind == StoryKind.Interlude) {
+            appendLine("- This is an extra Story about one part of the article about ${brief.subjectName}, the part titled \"${brief.source.title}\". The driver already knows where they are, so do not introduce ${brief.subjectName} from scratch: tell this part.")
+        }
         if (brief.relation == Relation.Behind) {
             appendLine("- The driver has already passed ${brief.subjectName}. Begin with a very short lead-in such as \"Back there, behind us…\".")
         }

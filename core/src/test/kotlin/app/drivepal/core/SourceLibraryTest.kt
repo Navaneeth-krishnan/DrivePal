@@ -215,6 +215,21 @@ class SourceLibraryTest {
     }
 
     @Test
+    fun `a province keeps far more of its article than a landmark, since its later sections become interludes`() {
+        val library = SourceLibrary(
+            wikipedia = { _, title -> articleJson(title, words = 30_000, wikidataId = "Q111") },
+            wikidata = { error("not needed") },
+            clockMillis = { 0 },
+        )
+
+        val province = (library.sourceFor(castle.copy(id = "area/province/X", kind = SubjectKind.Province)) as SourceLookup.Found).source
+        val landmark = (library.sourceFor(castle) as SourceLookup.Found).source
+
+        assertTrue(province.text.length > 100_000)
+        assertTrue(landmark.text.length <= 20_000)
+    }
+
+    @Test
     fun `a very long article is kept short but its real length still counts for Notability`() {
         val library = SourceLibrary(
             wikipedia = { _, title -> articleJson(title, words = 30_000, wikidataId = "Q111") },

@@ -88,12 +88,32 @@ class PassingDetectorTest {
     }
 
     @Test
-    fun `starting a trip just past a landmark passes it and reports it behind`() {
+    fun `a landmark already within range when the trip starts is not announced, though it is known to be behind`() {
         val (detector, events) = PassingDetector.watching(listOf(castle))
             .driven(roadNorth(fromMeters = 11_000, toMeters = 11_400))
 
-        assertEquals(listOf<PassingEvent>(PassingEvent.Passing(castle)), events)
+        assertEquals(emptyList<PassingEvent>(), events)
         assertFalse(detector.isAhead(castle))
+        assertEquals(listOf(castle), detector.relevantSubjects)
+    }
+
+    @Test
+    fun `places around the start are not announced even when they are loaded a moment after the first position`() {
+        val atTheStart = PassingDetector.watching(emptyList()).driven(roadNorth(fromMeters = 9_000, toMeters = 9_000)).first
+
+        val (_, events) = atTheStart.withSubjects(listOf(castle)).driven(roadNorth(fromMeters = 9_140, toMeters = 14_000))
+
+        assertEquals(emptyList<PassingEvent>(), events)
+    }
+
+    @Test
+    fun `a place further along the road is still announced when others were around at the start`() {
+        val furtherOn = castle.copy(id = "mill", position = ROAD_START.moved(northMeters = 16_000.0, eastMeters = 2_000.0))
+
+        val (_, events) = PassingDetector.watching(listOf(castle, furtherOn))
+            .driven(roadNorth(fromMeters = 9_000, toMeters = 20_000))
+
+        assertEquals(listOf<PassingEvent>(PassingEvent.Passing(furtherOn)), events)
     }
 
     @Test

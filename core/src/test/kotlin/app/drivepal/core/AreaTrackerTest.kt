@@ -9,16 +9,16 @@ class AreaTrackerTest {
     private val sevenHundredMetresOn = Position(52.0, 4.01)
     private val threeAndAHalfKilometresOn = Position(52.0, 4.05)
 
+    private val southHolland = Area(country = "Netherlands", province = "South Holland")
+
     @Test
-    fun `the first position enters the country and then the province`() {
+    fun `the place a trip starts in is known but is not an entry`() {
         val tracker = AreaTracker.starting(nominatim = { SOUTH_HOLLAND }, clockMillis = { 0 })
 
-        val events = tracker.withPosition(start).events
+        val update = tracker.withPosition(start)
 
-        assertEquals(
-            listOf<AreaEvent>(AreaEvent.EnteredCountry("Netherlands"), AreaEvent.EnteredProvince("South Holland")),
-            events,
-        )
+        assertEquals(emptyList<AreaEvent>(), update.events)
+        assertEquals(southHolland, update.area)
     }
 
     @Test
@@ -84,25 +84,19 @@ class AreaTrackerTest {
         nowMillis = 31_000
         val afterRecovery = tenSecondsLater.tracker.withPosition(threeAndAHalfKilometresOn)
 
-        assertEquals(emptyList<AreaEvent>(), whileDown.events)
+        assertEquals(null, whileDown.area)
         assertEquals(1, requestsAfterTenSeconds)
-        assertEquals(
-            listOf<AreaEvent>(AreaEvent.EnteredCountry("Netherlands"), AreaEvent.EnteredProvince("South Holland")),
-            afterRecovery.events,
-        )
+        // The first place it manages to learn is where the trip started, so that is still no entry.
+        assertEquals(emptyList<AreaEvent>(), afterRecovery.events)
+        assertEquals(southHolland, afterRecovery.area)
     }
 
     @Test
-    fun `a real Nominatim response near Kinderdijk enters the Netherlands and South Holland`() {
+    fun `a real Nominatim response near Kinderdijk places the trip in the Netherlands and South Holland`() {
         val recorded = AreaTrackerTest::class.java.getResource("/real/nominatim-reverse.json")!!.readText()
         val tracker = AreaTracker.starting(nominatim = { recorded }, clockMillis = { 0 })
 
-        val events = tracker.withPosition(Position(51.8826, 4.6403)).events
-
-        assertEquals(
-            listOf<AreaEvent>(AreaEvent.EnteredCountry("Netherlands"), AreaEvent.EnteredProvince("South Holland")),
-            events,
-        )
+        assertEquals(southHolland, tracker.withPosition(Position(51.8826, 4.6403)).area)
     }
 
     @Test
@@ -123,10 +117,6 @@ class AreaTrackerTest {
         assertEquals(null, afterwards.problem)
     }
 
-    private val hollandAndNetherlands = listOf<AreaEvent>(
-        AreaEvent.EnteredCountry("Netherlands"), AreaEvent.EnteredProvince("South Holland"),
-    )
-
     private fun realPhoton() = AreaTrackerTest::class.java.getResource("/real/photon-reverse-kinderdijk.json")!!.readText()
 
     @Test
@@ -139,7 +129,7 @@ class AreaTrackerTest {
 
         val update = tracker.withPosition(start)
 
-        assertEquals(hollandAndNetherlands, update.events)
+        assertEquals(southHolland, update.area)
         assertEquals(null, update.problem)
     }
 
@@ -151,7 +141,7 @@ class AreaTrackerTest {
             fallback = { realPhoton() },
         )
 
-        assertEquals(hollandAndNetherlands, tracker.withPosition(start).events)
+        assertEquals(southHolland, tracker.withPosition(start).area)
     }
 
     @Test
@@ -188,19 +178,32 @@ class AreaTrackerTest {
     }
 
     @Test
-    fun `a real Nominatim answer carries the province's own Wikipedia and Wikidata pages`() {
+    fun `entering a province from next door carries its own Wikipedia and Wikidata pages`() {
         val recorded = AreaTrackerTest::class.java.getResource("/real/nominatim-reverse-extratags.json")!!.readText()
-        val tracker = AreaTracker.starting(nominatim = { recorded }, clockMillis = { 0 })
+        val tracker = AreaTracker.starting(
+            nominatim = { position -> if (position.longitude < 4.03) UTRECHT else recorded },
+            clockMillis = { 0 },
+        )
 
-        val events = tracker.withPosition(Position(51.89, 4.64)).events
+        val update = tracker.withPosition(start).tracker.withPosition(threeAndAHalfKilometresOn)
 
         assertEquals(
-            listOf<AreaEvent>(
-                AreaEvent.EnteredCountry("Netherlands"),
-                AreaEvent.EnteredProvince("South Holland", wikipediaTag = "nl:Zuid-Holland", wikidataId = "Q694"),
-            ),
-            events,
+            listOf<AreaEvent>(AreaEvent.EnteredProvince("South Holland", wikipediaTag = "nl:Zuid-Holland", wikidataId = "Q694")),
+            update.events,
         )
+        assertEquals(Area("Netherlands", "South Holland", "nl:Zuid-Holland", "Q694"), update.area)
+    }
+
+    @Test
+    fun `after crossing a border the current area is the new one`() {
+        val tracker = AreaTracker.starting(
+            nominatim = { position -> if (position.longitude < 4.03) SOUTH_HOLLAND else ANTWERP },
+            clockMillis = { 0 },
+        )
+
+        val update = tracker.withPosition(start).tracker.withPosition(threeAndAHalfKilometresOn)
+
+        assertEquals(Area("Belgium", "Antwerp"), update.area)
     }
 }
 

@@ -102,5 +102,25 @@ object DebugRoutes {
         ),
     )
 
-    val all = listOf(kinderdijk, kozhencherry)
+    /**
+     * The E19 motorway from North Brabant (Netherlands) across the border into Antwerp province (Belgium): it starts
+     * 2 km before the border and ends 4 km after it. Geometry from OSRM (OpenStreetMap data, ODbL), at 90 km/h.
+     */
+    val e19IntoBelgium = DebugRoute(
+        name = "E19 into Belgium (NL to BE)",
+        speedKmh = 90.0,
+        points = doubleArrayOf(
+        51.500721, 4.742582, 51.499686, 4.742260, 51.499166, 4.742087, 51.497193, 4.741297,
+        51.496509, 4.740992, 51.495934, 4.740713, 51.495421, 4.740467, 51.493947, 4.739679,
+        51.488923, 4.736848, 51.486090, 4.735254, 51.485919, 4.735158, 51.485380, 4.734860,
+        51.482394, 4.733256, 51.479699, 4.731929, 51.477535, 4.730847, 51.476588, 4.730398,
+        51.475590, 4.729933, 51.474621, 4.729490, 51.473650, 4.729056, 51.472427, 4.728490,
+        51.470344, 4.727604, 51.469796, 4.727406, 51.469068, 4.727107, 51.467059, 4.726314,
+        51.465858, 4.725854, 51.464653, 4.725406, 51.461239, 4.724246, 51.457314, 4.722859,
+        51.456072, 4.722414, 51.454362, 4.721747, 51.453986, 4.721579, 51.452314, 4.720873,
+        51.451375, 4.720460,
+        ),
+    )
+
+    val all = listOf(kinderdijk, kozhencherry, e19IntoBelgium)
 }

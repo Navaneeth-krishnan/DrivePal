@@ -72,6 +72,18 @@ class StoryPromptTest {
     }
 
     @Test
+    fun `an interlude is told as an extra story about one named part, not as an introduction to the place`() {
+        val history = source.copy(title = "History", text = "In 1840 the province was formed from a larger county.")
+        val rules = system(
+            StoryBrief("South Holland", StoryKind.Interlude, history, Talkativeness.Normal, relation = null, earlierStories = emptyList()),
+        )
+
+        assertTrue("extra Story" in rules)
+        assertTrue("\"History\"" in rules)
+        assertTrue("already knows where" in rules)
+    }
+
+    @Test
     fun `the article, its language and its title are handed over as the source`() {
         val message = user(brief())
 

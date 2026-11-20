@@ -36,6 +36,8 @@ data class PassingDetector private constructor(
     val headingDegrees: Double?,
     /** The last position the heading was measured from; GPS noise near it is ignored. */
     private val headingAnchor: Position?,
+    /** Where the Trip began. Places within range of it are already around, so they are never announced. */
+    private val startPosition: Position?,
 ) {
     /** Subjects still close enough to talk about: within the Passing range, ahead or behind. */
     val relevantSubjects: List<Subject>
@@ -53,13 +55,17 @@ data class PassingDetector private constructor(
     /** Replaces the subjects being watched (new map tiles loaded). Subjects already Passed stay announced. */
     fun withSubjects(newSubjects: List<Subject>): PassingDetector = copy(subjects = newSubjects)
 
+    /** True if [subject] was already within range where the Trip began (judged from the first position). */
+    private fun aroundTheStart(subject: Subject, now: Position): Boolean =
+        distanceMeters(startPosition ?: now, subject.position) <= PASSING_RANGE_METERS
+
     /** How close the route came to [subject], counting the straight path since the last position. */
     private fun distanceFromRoute(subject: Subject, now: Position): Double =
         this.position?.let { distanceToPathMeters(subject.position, it, now) } ?: distanceMeters(now, subject.position)
 
     fun withPosition(position: Position): PassingUpdate {
         val newlyPassed = subjects.filter {
-            it.id !in passedIds && distanceFromRoute(it, position) <= PASSING_RANGE_METERS
+            it.id !in passedIds && !aroundTheStart(it, position) && distanceFromRoute(it, position) <= PASSING_RANGE_METERS
         }
         val anchor = headingAnchor
         val moved = anchor != null && distanceMeters(anchor, position) >= HEADING_MIN_MOVE_METERS
@@ -69,6 +75,7 @@ data class PassingDetector private constructor(
                 position = position,
                 headingDegrees = if (moved) bearingDegrees(anchor, position) else headingDegrees,
                 headingAnchor = if (anchor == null || moved) position else anchor,
+                startPosition = startPosition ?: position,
             ),
             events = newlyPassed.map { PassingEvent.Passing(it) },
         )
@@ -80,6 +87,6 @@ data class PassingDetector private constructor(
         private const val AHEAD_WITHIN_DEGREES = 90.0
 
         fun watching(subjects: List<Subject>): PassingDetector =
-            PassingDetector(subjects, passedIds = emptySet(), position = null, headingDegrees = null, headingAnchor = null)
+            PassingDetector(subjects, passedIds = emptySet(), position = null, headingDegrees = null, headingAnchor = null, startPosition = null)
     }
 }

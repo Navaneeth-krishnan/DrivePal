@@ -75,7 +75,7 @@ class SourceLibrary(
             val article = parseArticle(wikipedia.extract(language, title)) ?: continue
             val words = article.text.split(WHITESPACE).count { it.isNotEmpty() }
             if (words >= MIN_WORDS) {
-                return Source(language, article.title, article.text.take(MAX_SOURCE_CHARS), Notability(article.otherLanguages + 1, words))
+                return Source(language, article.title, article.text.take(maxCharsFor(subject.kind)), Notability(article.otherLanguages + 1, words))
             }
         }
         return null
@@ -96,12 +96,17 @@ class SourceLibrary(
             .take(MAX_CANDIDATES)
     }
 
+    /** A landmark's Story only needs the start of its article; an Area keeps far more, since its later sections become Interludes. */
+    private fun maxCharsFor(kind: SubjectKind) =
+        if (kind == SubjectKind.Country || kind == SubjectKind.Province) MAX_AREA_SOURCE_CHARS else MAX_SOURCE_CHARS
+
     private fun sitelinksOf(wikidataId: String): Map<String, String> =
         parseSitelinks(wikidata.sitelinks(wikidataId), wikidataId)
 
     private companion object {
         const val MIN_WORDS = 150
         const val MAX_SOURCE_CHARS = 20_000
+        const val MAX_AREA_SOURCE_CHARS = 150_000
         const val MAX_CANDIDATES = 3
         // Wikipedias made largely of bot-written stubs about places.
         val BOT_WRITTEN_WIKIS = setOf("ceb", "war", "arz")

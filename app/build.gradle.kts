@@ -36,6 +36,10 @@ android {
         buildConfigField("String", "AI_MODEL", "\"${setting("drivepal.aiModel", "gemma4:e4b")}\"")
         buildConfigField("String", "AI_API_KEY", "\"${setting("drivepal.aiKey", "")}\"")
         buildConfigField("String", "AI_REASONING_EFFORT", "\"${setting("drivepal.aiReasoningEffort", "none")}\"")
+
+        // How long the silence must last before an Interlude (a Story about an untold part of the Province or
+        // Country) is told. 300 s is the real value; shorten it with -Pdrivepal.interludeAfterSeconds=60 to try it.
+        buildConfigField("int", "INTERLUDE_AFTER_SECONDS", setting("drivepal.interludeAfterSeconds", "300"))
     }
 
     buildFeatures {

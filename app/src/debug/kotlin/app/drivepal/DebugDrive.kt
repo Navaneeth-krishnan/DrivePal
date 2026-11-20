@@ -21,6 +21,7 @@ object DebugDrive {
     val routes: List<String> = DebugRoutes.all.map { it.name }
 
     private const val STEP_SECONDS = 5
+    private const val PARKED_SECONDS = 600
     private const val METERS_PER_DEGREE = 111_195.0
 
     private val handler = Handler(Looper.getMainLooper())
@@ -49,8 +50,11 @@ object DebugDrive {
         val tick = object : Runnable {
             override fun run() {
                 val distance = step * metersPerStep
-                if (distance > path.length) return stop(context)
-                manager.setTestProviderLocation(LocationManager.GPS_PROVIDER, fix(path, distance, route.speedKmh / 3.6))
+                val arrived = distance > path.length
+                // A real car that stops keeps its GPS on: park at the end of the route for a while.
+                if (arrived && distance > path.length + PARKED_SECONDS / STEP_SECONDS * metersPerStep) return stop(context)
+                val speed = if (arrived) 0.0 else route.speedKmh / 3.6
+                manager.setTestProviderLocation(LocationManager.GPS_PROVIDER, fix(path, distance.coerceAtMost(path.length), speed))
                 step++
                 handler.postDelayed(this, STEP_SECONDS * 1000L)
             }

@@ -30,8 +30,16 @@ sealed interface AreaEvent {
     data class EnteredProvince(val name: String, val wikipediaTag: String? = null, val wikidataId: String? = null) : AreaEvent
 }
 
-/** [problem] says why the Area could not be worked out this time, if that is so. */
-data class AreaUpdate(val tracker: AreaTracker, val events: List<AreaEvent>, val problem: String? = null)
+/**
+ * [area] is where the driver is now, if known. [events] are only the Areas newly *entered*: the place a Trip
+ * starts in is known but is not an entry. [problem] says why the Area could not be worked out this time, if so.
+ */
+data class AreaUpdate(
+    val tracker: AreaTracker,
+    val events: List<AreaEvent>,
+    val problem: String? = null,
+    val area: Area? = null,
+)
 
 /**
  * Notices when the driver enters a new Country or Province. Nominatim is asked only after the
@@ -49,14 +57,14 @@ data class AreaTracker private constructor(
 ) {
     fun withPosition(position: Position): AreaUpdate {
         if (askedAt != null && distanceMeters(askedAt, position) < ASK_AGAIN_AFTER_METERS) {
-            return AreaUpdate(this, emptyList())
+            return AreaUpdate(this, emptyList(), area = area)
         }
         if (failedAtMillis != null && clockMillis() - failedAtMillis < RETRY_AFTER_MILLIS) {
-            return AreaUpdate(this, emptyList())
+            return AreaUpdate(this, emptyList(), area = area)
         }
         val (found, problem) = lookUp(position)
-        if (found == null) return AreaUpdate(copy(failedAtMillis = clockMillis()), emptyList(), problem)
-        return AreaUpdate(copy(askedAt = position, area = found, failedAtMillis = null), eventsFor(area, found))
+        if (found == null) return AreaUpdate(copy(failedAtMillis = clockMillis()), emptyList(), problem, area)
+        return AreaUpdate(copy(askedAt = position, area = found, failedAtMillis = null), eventsFor(area, found), area = found)
     }
 
     /** Nominatim first. If it fails or finds no address, Photon, when there is one. The problem names each that failed. */
@@ -78,9 +86,11 @@ data class AreaTracker private constructor(
     }
 
     private fun eventsFor(before: Area?, after: Area): List<AreaEvent> {
-        val country = if (before?.country != after.country) AreaEvent.EnteredCountry(after.country) else null
+        // The first place we learn is where the Trip started: the driver is already there, not entering it.
+        if (before == null) return emptyList()
+        val country = if (before.country != after.country) AreaEvent.EnteredCountry(after.country) else null
         val province = after.province
-            ?.takeIf { before?.country != after.country || before.province != it }
+            ?.takeIf { before.country != after.country || before.province != it }
             ?.let { AreaEvent.EnteredProvince(it, after.provinceWikipediaTag, after.provinceWikidataId) }
         return listOfNotNull(country, province)
     }
