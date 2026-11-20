@@ -9,9 +9,11 @@ import app.drivepal.core.Relation
 import app.drivepal.core.Source
 import app.drivepal.core.StoryBrief
 import app.drivepal.core.StoryKind
+import app.drivepal.core.StoryResult
 import app.drivepal.core.StoryWriter
 import app.drivepal.core.SubjectKind
 import app.drivepal.core.Talkativeness
+import app.drivepal.core.Utterance
 import app.drivepal.core.Position
 import app.drivepal.core.SourceLibrary
 import app.drivepal.core.SourceLookup
@@ -35,6 +37,7 @@ class Exploration(
     private val finder: SubjectFinder,
     private val sources: SourceLibrary,
     private val writer: StoryWriter,
+    private val narrator: Narrator,
 ) {
 
     private val handler = Handler(Looper.getMainLooper())
@@ -66,6 +69,9 @@ class Exploration(
         retryFailedLookups()
         loadAround(position)
     }
+
+    /** Whether [subjectId] is still close enough to be worth telling. Main thread only. */
+    fun isRelevant(subjectId: String): Boolean = detector.relevantSubjects.any { it.id == subjectId }
 
     /** Stops all work. A request already on the wire finishes in the background and is ignored. */
     fun stop() {
@@ -118,6 +124,11 @@ class Exploration(
         val result = writer.write(brief) ?: return
         told = told + subject.name
         show { ui -> ui.copy(stories = (listOf(describeStory(subject, result)) + ui.stories).take(MAX_STORIES)) }
+        val (text, language) = when (result) {
+            is StoryResult.Written -> result.text to "en"
+            is StoryResult.Fallback -> result.text to result.language
+        }
+        post { narrator.tell(Utterance(subject.id, text, language, title = subject.name)) }
     }
 
     /** Asks again for Passed subjects whose lookup failed, while they are still close enough to matter. */

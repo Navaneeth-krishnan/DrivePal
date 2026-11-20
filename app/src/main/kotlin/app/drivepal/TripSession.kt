@@ -15,6 +15,8 @@ data class TripUi(
     val notice: String? = null,
     /** Why the places around the driver could not be looked up right now, if that is so. */
     val problem: String? = null,
+    /** What happened to each Story as it was told (Told, Skipped, ...), newest first. */
+    val narration: List<String> = emptyList(),
     /** The Stories written so far, newest first. */
     val stories: List<String> = emptyList(),
     /** What DrivePal has noticed along the way, newest first. */

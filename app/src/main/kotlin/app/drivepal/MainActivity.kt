@@ -86,13 +86,19 @@ private fun TripScreen(ui: TripUi) {
                 Text("I'm still on the road")
             }
         }
-        ui.stories.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
-        ui.happenings.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        if (DebugDrive.available && ui.running) {
+            OutlinedButton(onClick = {
+                DebugDrive.start(context)?.let { message -> TripSession.update { it.copy(notice = message) } }
+            }) { Text("Simulate the Kinderdijk drive (debug)") }
+        }
         if (ui.running) {
             OutlinedButton(onClick = { send(context, TripService.ACTION_STOP) }) { Text("Stop Trip") }
         } else {
             Button(onClick = { permissions.launch(neededPermissions()) }) { Text("Start Trip") }
         }
+        ui.narration.forEach { Text(it, style = MaterialTheme.typography.titleMedium) }
+        ui.stories.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
+        ui.happenings.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
     }
 }
 

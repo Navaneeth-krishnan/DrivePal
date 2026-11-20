@@ -25,10 +25,12 @@ import app.drivepal.core.ChatSettings
 import app.drivepal.core.Fix
 import app.drivepal.core.Position
 import app.drivepal.core.SourceLibrary
+import app.drivepal.core.StoryOutcome
 import app.drivepal.core.StoryWriter
 import app.drivepal.core.SubjectFinder
 import app.drivepal.core.TripMonitor
 import app.drivepal.core.TripState
+import app.drivepal.core.Utterance
 
 /**
  * Keeps a Trip going while the screen is off: GPS in, [TripMonitor] decisions out.
@@ -43,6 +45,7 @@ class TripService : Service() {
     private val handler = Handler(Looper.getMainLooper())
 
     private var exploration: Exploration? = null
+    private var narrator: Narrator? = null
 
     // An object, not a lambda: on Android 10 the other callbacks are abstract.
     private val locationListener = object : LocationListener {
@@ -111,7 +114,14 @@ class TripService : Service() {
             return
         }
         monitor = TripMonitor.start(SystemClock.elapsedRealtime())
-        exploration = Exploration(finder, sources, writer)
+        val voice = Narrator(
+            context = applicationContext,
+            isRelevant = { exploration?.isRelevant(it.id) ?: false },
+            onOutcome = ::noteOutcome,
+            onPlayPressed = ::onPlayPressed,
+        )
+        narrator = voice
+        exploration = Exploration(finder, sources, writer, voice)
         shownState = TripState.Driving
         TripSession.update { TripUi(running = true, state = TripState.Driving) }
         handler.postDelayed(tick, TICK_MILLIS)
@@ -138,7 +148,20 @@ class TripService : Service() {
         applyMonitor(current.withPlayPressed(SystemClock.elapsedRealtime()))
     }
 
+    /** The media *play* button (steering wheel, headset): answers the question if one is waiting, otherwise replays the last Story. */
+    private fun onPlayPressed() {
+        if (monitor?.state == TripState.AskingStillOnTheRoad) answerStillOnTheRoad() else narrator?.replay()
+    }
+
+    private fun noteOutcome(utterance: Utterance, outcome: StoryOutcome) {
+        TripSession.update { ui -> ui.copy(narration = (listOf("${outcome.name}: ${utterance.title}") + ui.narration).take(MAX_NARRATION)) }
+    }
+
     private fun applyMonitor(next: TripMonitor) {
+        if (next.state == TripState.AskingStillOnTheRoad && monitor?.state != TripState.AskingStillOnTheRoad) {
+            narrator?.ask(Utterance("question", QUESTION, "en", story = false))
+        }
+        narrator?.setQuestionPending(next.state == TripState.AskingStillOnTheRoad)
         monitor = next
         TripSession.update { it.copy(state = next.state) }
         if (next.state == TripState.Ended) {
@@ -154,6 +177,8 @@ class TripService : Service() {
         handler.removeCallbacks(tick)
         exploration?.stop()
         exploration = null
+        narrator?.release()
+        narrator = null
         if (monitor != null) locationManager.removeUpdates(locationListener)
         monitor = null
         shownState = null
@@ -170,6 +195,7 @@ class TripService : Service() {
 
     override fun onDestroy() {
         exploration?.stop()
+        narrator?.release()
         handler.removeCallbacks(tick)
         if (monitor != null) locationManager.removeUpdates(locationListener)
         monitor = null
@@ -237,6 +263,8 @@ class TripService : Service() {
         private const val TICK_MILLIS = 10_000L
         private const val MS_TO_KMH = 3.6
         private const val NANOS_PER_MILLI = 1_000_000L
+        private const val MAX_NARRATION = 6
+        private const val QUESTION = "Still on the road? Press play to keep going."
 
         // Process-wide so that what has been looked up is remembered from one Trip to the next.
         private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime)
