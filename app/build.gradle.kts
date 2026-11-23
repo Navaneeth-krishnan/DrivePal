@@ -42,6 +42,33 @@ android {
         buildConfigField("int", "INTERLUDE_AFTER_SECONDS", setting("drivepal.interludeAfterSeconds", "300"))
     }
 
+    // Release signing: the key and its passwords live outside this repository, in ~/.gradle/gradle.properties
+    // (drivepal.releaseStoreFile, drivepal.releaseStorePassword, drivepal.releaseKeyAlias, drivepal.releaseKeyPassword).
+    // Without them a release build still builds, unsigned. Losing the key means the installed app cannot be updated:
+    // back up the key file and those properties together.
+    val releaseStoreFile = providers.gradleProperty("drivepal.releaseStoreFile").orNull
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = providers.gradleProperty("drivepal.releaseStorePassword").get()
+                keyAlias = providers.gradleProperty("drivepal.releaseKeyAlias").get()
+                keyPassword = providers.gradleProperty("drivepal.releaseKeyPassword").get()
+            }
+        }
+    }
+
+    buildTypes {
+        // Debug builds are a separate app (app.drivepal.debug, "DrivePal debug"), so they install next to a release
+        // build, each with its own data and its own packs folder (Android/data/<app id>/files/packs/).
+        debug {
+            applicationIdSuffix = ".debug" // its name, "DrivePal debug", is in src/debug/res
+        }
+        release {
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true

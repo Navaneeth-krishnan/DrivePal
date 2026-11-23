@@ -177,7 +177,7 @@ class TripService : Service() {
     }
 
     /**
-     * Finds the Region pack, on the pack opener thread. A pack copied into Android/data/app.drivepal/files/packs/ by
+     * Finds the Region pack, on the pack opener thread. A pack copied into Android/data/<app id>/files/packs/ by
      * hand comes first, then the one that comes with the app. Returns the database of the pack in use, to be closed.
      */
     private fun openShelf(): Pair<Shelf, AndroidPackDatabase?> {

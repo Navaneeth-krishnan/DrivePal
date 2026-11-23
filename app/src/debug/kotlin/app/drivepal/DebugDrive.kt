@@ -16,7 +16,7 @@ import kotlin.math.sin
 /**
  * Debug builds only: drives a test route by feeding fake GPS fixes, in real time, so the whole app can be tried
  * on a phone at a desk. Needs the app to be the mock location app, which is allowed once with
- * `adb shell appops set app.drivepal android:mock_location allow`
+ * `adb shell appops set app.drivepal.debug android:mock_location allow`
  */
 object DebugDrive {
     val routes: List<String> = DebugRoutes.all.map { it.name }
@@ -45,7 +45,7 @@ object DebugDrive {
             )
             manager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
         } catch (e: SecurityException) {
-            return "Allow mock locations first: adb shell appops set app.drivepal android:mock_location allow"
+            return "Allow mock locations first: adb shell appops set app.drivepal.debug android:mock_location allow"
         }
         val path = Path(route.points)
         var distance = 0.0
