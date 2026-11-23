@@ -22,6 +22,12 @@ fun interface WikipediaGeoSearchClient {
     fun search(center: Position, radiusMeters: Int): String
 }
 
+/** Where the places around the driver come from: online ([SubjectFinder]) or a Region pack ([PackFirst]). */
+interface SubjectSource {
+    /** The places within reach of [position]; with a [headingDegrees], a source may also load what lies ahead. */
+    fun subjectsAround(position: Position, headingDegrees: Double? = null): SubjectsAround
+}
+
 /** What [SubjectFinder] found, and what went wrong on the way (so the screen can say so), if anything. */
 data class SubjectsAround(val subjects: List<Subject>, val problem: String?)
 
@@ -38,7 +44,7 @@ class SubjectFinder(
     private val overpass: OverpassClient,
     private val clockMillis: () -> Long,
     private val geoSearch: WikipediaGeoSearchClient? = null,
-) {
+) : SubjectSource {
     /** [note] explains, for a tile served by the fallback, why. */
     /** [note] explains, for a tile that is [incomplete] (one of its two sources failed), why. */
     private class Loaded(val subjects: List<Subject>, val atMillis: Long, val incomplete: Boolean, val note: String?)
@@ -51,7 +57,7 @@ class SubjectFinder(
      * the tile about 5 km ahead is loaded too, so a slow or failing Overpass has time to answer before the driver gets there.
      * A tile that cannot be loaded is skipped, and not asked for again for a while; [SubjectsAround.problem] says why.
      */
-    fun subjectsAround(position: Position, headingDegrees: Double? = null): SubjectsAround {
+    override fun subjectsAround(position: Position, headingDegrees: Double?): SubjectsAround {
         val tiles = (tilesAround(position) + listOfNotNull(headingDegrees?.let { tileAhead(position, it) })).distinct()
         val now = clockMillis()
         val subjects = tiles.flatMap { tile -> upToDate(tile, now)?.subjects ?: load(tile, now) }.distinctBy { it.id }

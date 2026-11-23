@@ -254,4 +254,22 @@ class StoryDirectorAnnouncementTest {
         assertTrue(pick.announceOnly)
         assertEquals(2_500.0, pick.distanceMeters)
     }
+
+    @Test
+    fun `an Area named by a Region pack is announced by name, and no article is looked up for it`() {
+        val director = director()
+
+        val atTheStart = director.areaChanged(Area("India", "Kerala"), emptyList(), fromPack = true)
+        val acrossTheBorder = director.areaChanged(
+            Area("India", "Tamil Nadu"), listOf(AreaEvent.EnteredProvince("Tamil Nadu")), fromPack = true,
+        )
+        val pick = director.pickAt(0, Talkativeness.Normal)!!
+
+        assertEquals(emptyList<Subject>(), atTheStart)
+        assertEquals(emptyList<Subject>(), acrossTheBorder)
+        assertEquals(StoryKind.Province, pick.kind)
+        assertEquals("Tamil Nadu", pick.title)
+        assertTrue(pick.announceOnly)
+        assertNull(pick.source)
+    }
 }

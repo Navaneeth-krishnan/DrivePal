@@ -33,17 +33,20 @@ sealed interface AreaEvent {
 /**
  * [area] is where the driver is now, if known. [events] are only the Areas newly *entered*: the place a Trip
  * starts in is known but is not an entry. [problem] says why the Area could not be worked out this time, if so.
+ * [fromPack] is true when a Region pack named [area]: it has no Source to look up, so it can only be announced by name.
  */
 data class AreaUpdate(
     val tracker: AreaTracker,
     val events: List<AreaEvent>,
     val problem: String? = null,
     val area: Area? = null,
+    val fromPack: Boolean = false,
 )
 
 /**
  * Notices when the driver enters a new Country or Province. Nominatim is asked only after the
- * driver has moved a couple of kilometres, so we stay within its usage rules.
+ * driver has moved a couple of kilometres, so we stay within its usage rules. A Region pack ([offline]), when there is
+ * one, is asked first: where it knows the Area no network is used.
  * Immutable: every new position returns an updated tracker and the events it caused.
  */
 @ConsistentCopyVisibility
@@ -56,31 +59,39 @@ data class AreaTracker private constructor(
     private val fallback: PhotonClient?,
     /** Which service gave the current [area]. Two services name Areas differently, so a switch is not a crossing. */
     private val answeredBy: Provider?,
+    private val offline: OfflineAreas?,
 ) {
-    private enum class Provider { Nominatim, Photon }
+    private enum class Provider { Pack, Nominatim, Photon }
+
+    private val fromPack get() = answeredBy == Provider.Pack
 
     private class Lookup(val area: Area?, val problem: String?, val provider: Provider?)
 
     fun withPosition(position: Position): AreaUpdate {
         if (askedAt != null && distanceMeters(askedAt, position) < ASK_AGAIN_AFTER_METERS) {
-            return AreaUpdate(this, emptyList(), area = area)
+            return AreaUpdate(this, emptyList(), area = area, fromPack = fromPack)
         }
         if (failedAtMillis != null && clockMillis() - failedAtMillis < RETRY_AFTER_MILLIS) {
-            return AreaUpdate(this, emptyList(), area = area)
+            return AreaUpdate(this, emptyList(), area = area, fromPack = fromPack)
         }
         val lookup = lookUp(position)
-        val found = lookup.area ?: return AreaUpdate(copy(failedAtMillis = clockMillis()), emptyList(), lookup.problem, area)
+        val found = lookup.area ?: return AreaUpdate(copy(failedAtMillis = clockMillis()), emptyList(), lookup.problem, area, fromPack)
         // A different service answering is not a border crossing: they can name the same place differently.
         val events = if (lookup.provider == answeredBy) eventsFor(area, found) else emptyList()
         return AreaUpdate(
             copy(askedAt = position, area = found, failedAtMillis = null, answeredBy = lookup.provider),
             events,
             area = found,
+            fromPack = lookup.provider == Provider.Pack,
         )
     }
 
-    /** Nominatim first. If it fails or finds no address, Photon, when there is one. The problem names each that failed. */
+    /**
+     * The Region pack first, where it knows the Area. Then Nominatim; if it fails or finds no address, Photon, when
+     * there is one. The problem names each that failed.
+     */
     private fun lookUp(position: Position): Lookup {
+        offline?.areaAt(position)?.let { return Lookup(it, null, Provider.Pack) }
         val (fromNominatim, nominatimProblem) = attempt { parseArea(nominatim.reverse(position)) }
         if (fromNominatim != null || fallback == null) return Lookup(fromNominatim, nominatimProblem, Provider.Nominatim)
         val (fromPhoton, photonProblem) = attempt { parsePhotonArea(fallback.reverse(position)) }
@@ -112,8 +123,15 @@ data class AreaTracker private constructor(
         private const val ASK_AGAIN_AFTER_METERS = 2_000.0
         private const val RETRY_AFTER_MILLIS = 30_000L
 
-        fun starting(nominatim: NominatimClient, clockMillis: () -> Long, fallback: PhotonClient? = null): AreaTracker =
-            AreaTracker(nominatim, clockMillis, askedAt = null, area = null, failedAtMillis = null, fallback = fallback, answeredBy = null)
+        fun starting(
+            nominatim: NominatimClient,
+            clockMillis: () -> Long,
+            fallback: PhotonClient? = null,
+            offline: OfflineAreas? = null,
+        ): AreaTracker = AreaTracker(
+            nominatim, clockMillis, askedAt = null, area = null, failedAtMillis = null, fallback = fallback,
+            answeredBy = null, offline = offline,
+        )
     }
 }
 

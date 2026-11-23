@@ -60,8 +60,9 @@ class StoryDirector(
 
     /**
      * The driver is now in [area], having just entered [events]. Returns the Areas whose articles must be looked up.
+     * An Area named by a Region pack ([fromPack]) has no article to look up: an entered one is announced by name.
      */
-    fun areaChanged(area: Area?, events: List<AreaEvent>): List<Subject> {
+    fun areaChanged(area: Area?, events: List<AreaEvent>, fromPack: Boolean = false): List<Subject> {
         currentCountryKey = area?.let { countryKey(it.country) }
         currentProvinceKey = area?.province?.let { provinceKey(area.country, it) }
         val current = setOfNotNull(currentCountryKey, currentProvinceKey)
@@ -71,6 +72,15 @@ class StoryDirector(
         interludes.values.removeAll { it.subject.id !in current }
 
         if (area == null) return emptyList()
+        if (fromPack) {
+            events.forEach { event ->
+                when (event) {
+                    is AreaEvent.EnteredCountry -> countrySubject(area)
+                    is AreaEvent.EnteredProvince -> provinceSubject(area)
+                }?.let { addCandidate(it, source = null) }
+            }
+            return emptyList()
+        }
         events.forEach { event ->
             val key = when (event) {
                 is AreaEvent.EnteredCountry -> countryKey(event.name)
