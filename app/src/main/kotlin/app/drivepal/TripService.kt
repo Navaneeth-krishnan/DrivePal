@@ -25,6 +25,7 @@ import app.drivepal.core.LoggedStory
 import app.drivepal.core.OfflineAreas
 import app.drivepal.core.PackFirst
 import app.drivepal.core.PackShelf
+import app.drivepal.core.Shelf
 import app.drivepal.core.TripLog
 import app.drivepal.core.Fix
 import app.drivepal.core.Position
@@ -35,6 +36,8 @@ import app.drivepal.core.SubjectFinder
 import app.drivepal.core.TripMonitor
 import app.drivepal.core.TripState
 import app.drivepal.core.Utterance
+import java.io.IOException
+import java.util.concurrent.Executors
 
 /**
  * Keeps a Trip going while the screen is off: GPS in, [TripMonitor] decisions out.
@@ -52,6 +55,8 @@ class TripService : Service() {
     private var narrator: Narrator? = null
     private var tripLog: TripLog? = null
     private var packDatabase: AndroidPackDatabase? = null
+    private val packOpener = Executors.newSingleThreadExecutor()
+    private var tripNumber = 0 // which Trip a pack being opened belongs to
 
     // An object, not a lambda: on Android 10 the other callbacks are abstract.
     private val locationListener = object : LocationListener {
@@ -133,32 +138,56 @@ class TripService : Service() {
         val problems = connection.settings.problems(connection.apiKey)
         // Settings are read once per Trip: a change in Settings applies from the next Trip.
         val writer = StoryWriter(ChatClient(AiHttp { connection }, connection.settings.chatSettings()))
-        // A Region pack answers inside its regions, with no network: one copied into Android/data/app.drivepal/files/packs/
-        // by hand comes first, then the one that comes with the app.
-        val shelf = PackShelf.open(listOf(packsFolder(), BundledPacks.unpack(applicationContext))) { file ->
-            closePack() // a pack opened but then refused (an unknown format inside) is closed before the next is tried
-            AndroidPackDatabase(file).also { packDatabase = it }
-        }
-        exploration = Exploration(
-            places = shelf.pack?.let { PackFirst(it, finder) } ?: finder,
-            sources = sources,
-            writer = writer,
-            narrator = voice,
-            store = storage.told,
-            talkativeness = { preferences.talkativeness },
-            offline = shelf.pack?.let(::OfflineAreas),
-        )
         tripLog = TripLog.load(storage.tripLog).startTrip(System.currentTimeMillis())
         shownState = TripState.Driving
         TripSession.update {
-            TripUi(
-                running = true,
-                state = TripState.Driving,
-                notice = problems.firstOrNull()?.let { "AI settings: $it" },
-                offline = shelf.notice,
-            )
+            TripUi(running = true, state = TripState.Driving, notice = problems.firstOrNull()?.let { "AI settings: $it" })
         }
         handler.postDelayed(tick, TICK_MILLIS)
+
+        // Opening the Region pack copies and checksums megabytes, so it is done off the main thread. Until it is open
+        // there is no Exploration: the first GPS fixes of the Trip (well under a second's worth) are only counted
+        // for speed.
+        val trip = ++tripNumber
+        packOpener.execute {
+            val (shelf, database) = try {
+                openShelf()
+            } catch (e: IOException) {
+                // Copying the bundled pack failed (a full disk, say): the Trip goes online rather than not at all.
+                Shelf(pack = null, notice = "The Region pack could not be opened, so online maps are used") to null
+            }
+            handler.post {
+                if (trip != tripNumber || monitor == null) {
+                    database?.close() // the Trip ended while the pack was being opened
+                    return@post
+                }
+                packDatabase = database
+                exploration = Exploration(
+                    places = shelf.pack?.let { PackFirst(it, finder) } ?: finder,
+                    sources = sources,
+                    writer = writer,
+                    narrator = voice,
+                    store = storage.told,
+                    talkativeness = { preferences.talkativeness },
+                    offline = shelf.pack?.let(::OfflineAreas),
+                )
+                TripSession.update { it.copy(offline = shelf.notice) }
+            }
+        }
+    }
+
+    /**
+     * Finds the Region pack, on the pack opener thread. A pack copied into Android/data/app.drivepal/files/packs/ by
+     * hand comes first, then the one that comes with the app. Returns the database of the pack in use, to be closed.
+     */
+    private fun openShelf(): Pair<Shelf, AndroidPackDatabase?> {
+        var opened: AndroidPackDatabase? = null
+        val shelf = PackShelf.open(listOf(packsFolder(), BundledPacks.unpack(applicationContext))) { file ->
+            opened?.close() // a pack opened but then refused (an unknown format inside) is closed before the next is tried
+            AndroidPackDatabase(file).also { opened = it }
+        }
+        if (shelf.pack == null) opened?.close()
+        return shelf to opened?.takeIf { shelf.pack != null }
     }
 
     private fun onLocation(location: Location) {
@@ -247,6 +276,7 @@ class TripService : Service() {
         tripLog?.endTrip(System.currentTimeMillis())
         exploration?.stop()
         closePack()
+        packOpener.shutdown() // a pack still being opened is closed when it is ready, as the Trip has ended
         narrator?.release()
         handler.removeCallbacks(tick)
         if (monitor != null) locationManager.removeUpdates(locationListener)
