@@ -81,7 +81,7 @@ _Avoid_: Frequency, verbosity, chattiness, mode
 ### Offline
 
 **Region pack**:
-A single file for one State or Province that holds what DrivePal needs to name the places on a drive without a network: the places with their names, the named Junctions, and the boundaries of the Areas. Inside its region it replaces the online map services; outside, or without one, DrivePal goes online as before.
+A single file for one or more States or Provinces (South India comes with the app) that holds what DrivePal needs to name the places on a drive without a network: the places with their names, the named Junctions, and the boundaries of the Areas. Inside its regions it replaces the online map services; outside, or without one, DrivePal goes online as before. A pack copied onto the phone by hand is used instead of the one that comes with the app.
 _Avoid_: Map, offline map, download, database, cache
 
 ### Stories

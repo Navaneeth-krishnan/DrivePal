@@ -133,8 +133,12 @@ class TripService : Service() {
         val problems = connection.settings.problems(connection.apiKey)
         // Settings are read once per Trip: a change in Settings applies from the next Trip.
         val writer = StoryWriter(ChatClient(AiHttp { connection }, connection.settings.chatSettings()))
-        // A Region pack in Android/data/app.drivepal/files/packs/ answers inside its region, with no network.
-        val shelf = PackShelf.open(packsFolder()) { file -> AndroidPackDatabase(file).also { packDatabase = it } }
+        // A Region pack answers inside its regions, with no network: one copied into Android/data/app.drivepal/files/packs/
+        // by hand comes first, then the one that comes with the app.
+        val shelf = PackShelf.open(listOf(packsFolder(), BundledPacks.unpack(applicationContext))) { file ->
+            closePack() // a pack opened but then refused (an unknown format inside) is closed before the next is tried
+            AndroidPackDatabase(file).also { packDatabase = it }
+        }
         exploration = Exploration(
             places = shelf.pack?.let { PackFirst(it, finder) } ?: finder,
             sources = sources,

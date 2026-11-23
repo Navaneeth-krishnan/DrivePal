@@ -14,27 +14,32 @@ import kotlinx.serialization.json.longOrNull
 data class Shelf(val pack: RegionPack?, val notice: String?)
 
 /**
- * Finds the Region pack in the packs folder at the start of a Trip. Each `name.drivepal` has a manifest beside it,
- * `name.json` (file, region, format_version, size, sha256), written by the builder: a pack that does not match its
- * manifest, or comes in a format this app does not read, is left unused, so the Trip goes online as before.
- * With more than one pack, the first by file name is used.
+ * Finds the Region pack to use at the start of a Trip, in [open]'s folders in order: the first usable pack wins, so a
+ * pack copied in by hand takes the place of the one that comes with the app. Each `name.drivepal` has a manifest
+ * beside it, `name.json` (file, region, format_version, size, sha256), written by the builder: a pack that does not
+ * match its manifest, or comes in a format this app does not read, is left unused, and the driver is told why.
+ * Within one folder, the first pack by file name is used.
  */
 object PackShelf {
     private const val PACK_EXTENSION = "drivepal"
 
     /** [openDatabase] opens a pack's file read-only: Android's SQLite on the phone, sqlite-jdbc in tests. */
-    fun open(folder: File, openDatabase: (File) -> PackDatabase): Shelf {
-        val pack = folder.listFiles { file -> file.isFile && file.extension == PACK_EXTENSION }
-            ?.minByOrNull { it.name }
-            ?: return Shelf(pack = null, notice = null)
-        return try {
-            openChecked(pack, openDatabase)
-        } catch (refused: PackRefused) {
-            Shelf(pack = null, notice = "${refused.message}, so online maps are used")
+    fun open(folders: List<File>, openDatabase: (File) -> PackDatabase): Shelf {
+        val refusals = mutableListOf<String>()
+        for (folder in folders) {
+            val file = folder.listFiles { file -> file.isFile && file.extension == PACK_EXTENSION }?.minByOrNull { it.name } ?: continue
+            try {
+                val pack = openChecked(file, openDatabase)
+                val notice = (listOf("Offline: ${pack.region}") + refusals.map { "$it, so it is not used" }).joinToString(". ")
+                return Shelf(pack, notice)
+            } catch (refused: PackRefused) {
+                refusals += refused.message.orEmpty()
+            }
         }
+        return Shelf(pack = null, notice = refusals.firstOrNull()?.let { "$it, so online maps are used" })
     }
 
-    private fun openChecked(file: File, openDatabase: (File) -> PackDatabase): Shelf {
+    private fun openChecked(file: File, openDatabase: (File) -> PackDatabase): RegionPack {
         val manifestFile = File(file.parentFile, "${file.nameWithoutExtension}.json")
         if (!manifestFile.isFile) throw PackRefused("${file.name} has no manifest")
         val manifest = readManifest(manifestFile) ?: throw PackRefused("${file.name} has an unreadable manifest")
@@ -50,7 +55,7 @@ object PackShelf {
         } catch (broken: Exception) {
             throw PackRefused("The $region pack is damaged")
         }
-        return Shelf(pack, notice = "Offline: ${pack.region}")
+        return pack
     }
 
     private fun readManifest(file: File): JsonObject? =

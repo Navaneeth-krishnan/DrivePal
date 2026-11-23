@@ -7,14 +7,16 @@
 
 Usage:
     scripts/build_region_pack.py EXTRACT --wikidata Q1186 --output kerala.drivepal [--country India]
+    scripts/build_region_pack.py EXTRACT --wikidata Q1186 Q1445 --name "South India" --output south-india.drivepal
 
-EXTRACT is an .osm or .osm.pbf file that holds the whole region, such as Geofabrik's India southern zone for Kerala.
-The region is the State or Province (boundary=administrative, admin_level=4) with that Wikidata id. The pack holds:
+EXTRACT is an .osm or .osm.pbf file that holds the whole of every region, such as Geofabrik's India southern zone.
+Each region is a State or Province (boundary=administrative, admin_level=4) given by its Wikidata id; with more than
+one, --name names the pack. The pack holds:
 
-- the region and every admin level 4 neighbour that touches it, each with its country, simplified to about 50 m
-  and keeping holes (Mahé, Puducherry's enclave in Kerala);
+- the regions and every admin level 4 neighbour that touches one of them, each with its country, simplified to
+  about 50 m and keeping holes (Mahé, Puducherry's enclave in Kerala);
 - named places (city, town, village, suburb, hamlet, locality; areas by their centroid) and named motorway
-  junctions, inside the region or within 3 km of its border.
+  junctions, inside a region or within 3 km of its border.
 
 Beside the pack it writes a manifest (kerala.json) with the pack's size and SHA-256. The schema is the contract
 with the app's reader, documented in core/src/main/kotlin/app/drivepal/core/SqlRegionPack.kt.
@@ -32,6 +34,7 @@ from pathlib import Path
 import osmium
 from shapely import wkb
 from shapely.geometry import Point, mapping
+from shapely.ops import unary_union
 from shapely.prepared import prep
 
 FORMAT_VERSION = 1
@@ -155,19 +158,26 @@ def header_timestamp(path: Path) -> str:
         reader.close()
 
 
-def build(extract: Path, wikidata: str, output: Path, country: str | None) -> None:
+def build(extract: Path, wikidata: list[str], name: str | None, output: Path, country: str | None) -> None:
+    if len(wikidata) > 1 and name is None:
+        sys.exit("A pack for several regions needs --name")
     boundaries, places = read_extract(extract)
     provinces = [b for b in boundaries if b.level == 4]
     countries = [b for b in boundaries if b.level == 2]
-    region = next((b for b in provinces if b.wikidata == wikidata), None)
-    if region is None:
-        sys.exit(f"No admin level 4 boundary with wikidata={wikidata} in {extract}")
+    regions = []
+    for wanted in wikidata:
+        region = next((b for b in provinces if b.wikidata == wanted), None)
+        if region is None:
+            sys.exit(f"No admin level 4 boundary with wikidata={wanted} in {extract}")
+        regions.append(region)
+    covered = unary_union([r.geometry for r in regions])
 
-    touching = prep(region.geometry.buffer(NEIGHBOUR_DEGREES))
+    touching = prep(covered.buffer(NEIGHBOUR_DEGREES))
     areas = sorted((b for b in provinces if touching.intersects(b.geometry)), key=lambda b: b.name)
-    reach = prep(region.geometry.buffer(BEYOND_BORDER_DEGREES))
+    reach = prep(covered.buffer(BEYOND_BORDER_DEGREES))
     kept = sorted((p for p in places if reach.contains(Point(p.lon, p.lat))), key=lambda p: p.id)
-    region_country = country_of(region, countries, country)
+    pack_name = name or regions[0].name
+    region_country = country_of(regions[0], countries, country)
 
     partial = output.with_suffix(output.suffix + ".partial")
     partial.unlink(missing_ok=True)
@@ -175,7 +185,7 @@ def build(extract: Path, wikidata: str, output: Path, country: str | None) -> No
         db.executescript(SCHEMA)
         meta = {
             "format_version": str(FORMAT_VERSION),
-            "region": region.name,
+            "region": pack_name,
             "country": region_country,
             "source": extract.name,
             "data_timestamp": header_timestamp(extract),
@@ -188,13 +198,13 @@ def build(extract: Path, wikidata: str, output: Path, country: str | None) -> No
         db.executemany(
             "INSERT INTO areas (name, country, is_region, south, west, north, east, polygons, wikipedia, wikidata) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [area_row(a, a is region, country_of(a, countries, country)) for a in areas],
+            [area_row(a, any(a is r for r in regions), country_of(a, countries, country)) for a in areas],
         )
     with sqlite3.connect(partial) as db:
         db.execute("VACUUM")
     partial.replace(output)
-    write_manifest(output, region.name)
-    print(f"{output}: {region.name}, {region_country}; {len(kept)} places, {len(areas)} areas, {output.stat().st_size} bytes")
+    write_manifest(output, pack_name)
+    print(f"{output}: {pack_name}, {region_country}; {len(kept)} places, {len(areas)} areas, {output.stat().st_size} bytes")
 
 
 def area_row(area: Boundary, is_region: bool, country: str):
@@ -222,11 +232,12 @@ CREATE TABLE areas (id INTEGER PRIMARY KEY, name TEXT NOT NULL, country TEXT NOT
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("extract", type=Path, help="an .osm or .osm.pbf file holding the whole region")
-    parser.add_argument("--wikidata", required=True, help="the region's Wikidata id, such as Q1186 for Kerala")
+    parser.add_argument("--wikidata", required=True, nargs="+", help="each region's Wikidata id, such as Q1186 for Kerala")
+    parser.add_argument("--name", help="the pack's name, needed with several regions, such as South India")
     parser.add_argument("--output", required=True, type=Path, help="the pack to write, such as kerala.drivepal")
     parser.add_argument("--country", help="the country's name, if the extract has no boundary for it")
     args = parser.parse_args()
-    build(args.extract, args.wikidata, args.output, args.country)
+    build(args.extract, args.wikidata, args.name, args.output, args.country)
 
 
 if __name__ == "__main__":

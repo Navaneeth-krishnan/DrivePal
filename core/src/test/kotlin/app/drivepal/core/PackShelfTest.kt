@@ -34,7 +34,7 @@ class PackShelfTest {
         copyFixturePack(pack)
         copyManifest()
 
-        val shelf = PackShelf.open(folder, openDatabase)
+        val shelf = PackShelf.open(listOf(folder), openDatabase)
 
         assertEquals("Kerala", shelf.pack?.region)
         assertEquals("Offline: Kerala", shelf.notice)
@@ -46,7 +46,7 @@ class PackShelfTest {
         copyManifest()
         pack.appendBytes(byteArrayOf(0))
 
-        val shelf = PackShelf.open(folder, openDatabase)
+        val shelf = PackShelf.open(listOf(folder), openDatabase)
 
         assertNull(shelf.pack)
         assertEquals("The Kerala pack is damaged, so online maps are used", shelf.notice)
@@ -56,7 +56,7 @@ class PackShelfTest {
     fun `a pack without its manifest is not used, and the driver is told why`() {
         copyFixturePack(pack)
 
-        val shelf = PackShelf.open(folder, openDatabase)
+        val shelf = PackShelf.open(listOf(folder), openDatabase)
 
         assertNull(shelf.pack)
         assertEquals("kerala-fixture.drivepal has no manifest, so online maps are used", shelf.notice)
@@ -70,15 +70,59 @@ class PackShelfTest {
             """{"file": "kerala-fixture.drivepal", "region": "Kerala", "format_version": 2, "size": ${pack.length()}, "sha256": "$sha256"}""",
         )
 
-        val shelf = PackShelf.open(folder, openDatabase)
+        val shelf = PackShelf.open(listOf(folder), openDatabase)
 
         assertNull(shelf.pack)
         assertEquals("The Kerala pack needs a newer DrivePal, so online maps are used", shelf.notice)
     }
 
+    private val bundled = File(folder, "bundled").apply { mkdirs() }
+
+    private fun bundleSouthPack() {
+        copyFixturePack(File(bundled, "south-fixture.drivepal"), fixtureName = "south-fixture")
+        PackShelfTest::class.java.getResourceAsStream("/packs/south-fixture.json")!!.use { input ->
+            File(bundled, "south-fixture.json").outputStream().use { input.copyTo(it) }
+        }
+    }
+
+    @Test
+    fun `a pack copied in by hand is used instead of the one that comes with the app`() {
+        copyFixturePack(pack)
+        copyManifest()
+        bundleSouthPack()
+
+        val shelf = PackShelf.open(listOf(folder, bundled), openDatabase)
+
+        assertEquals("Kerala", shelf.pack?.region)
+        assertEquals("Offline: Kerala", shelf.notice)
+    }
+
+    @Test
+    fun `with nothing copied in by hand the pack that comes with the app is used`() {
+        bundleSouthPack()
+
+        val shelf = PackShelf.open(listOf(folder, bundled), openDatabase)
+
+        assertEquals("South India", shelf.pack?.region)
+        assertEquals("Offline: South India", shelf.notice)
+    }
+
+    @Test
+    fun `a damaged pack copied in by hand gives way to the one that comes with the app, and the driver is told both`() {
+        copyFixturePack(pack)
+        copyManifest()
+        pack.appendBytes(byteArrayOf(0))
+        bundleSouthPack()
+
+        val shelf = PackShelf.open(listOf(folder, bundled), openDatabase)
+
+        assertEquals("South India", shelf.pack?.region)
+        assertEquals("Offline: South India. The Kerala pack is damaged, so it is not used", shelf.notice)
+    }
+
     @Test
     fun `with no packs folder the trip goes online as before, with nothing to tell the driver`() {
-        val shelf = PackShelf.open(File(folder, "missing"), openDatabase)
+        val shelf = PackShelf.open(listOf(File(folder, "missing")), openDatabase)
 
         assertEquals(Shelf(pack = null, notice = null), shelf)
     }

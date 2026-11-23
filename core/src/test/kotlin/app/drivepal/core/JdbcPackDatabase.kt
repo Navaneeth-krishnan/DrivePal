@@ -21,12 +21,12 @@ class JdbcPackDatabase(file: File) : PackDatabase, AutoCloseable {
 }
 
 /**
- * Copies the fixture pack that scripts/build_region_pack.py builds from `packs/kerala-fixture.osm` (see that file),
+ * Copies a fixture pack that scripts/build_region_pack.py builds from `packs/kerala-fixture.osm` (see that file),
  * so the reader is tested against the builder's own output. [formatVersion] other than 1 rewrites the copy's
  * version, to stand for a pack from a later builder.
  */
-fun copyFixturePack(file: File, formatVersion: Int = 1) {
-    val fixture = JdbcPackDatabase::class.java.getResourceAsStream("/packs/kerala-fixture.drivepal")
+fun copyFixturePack(file: File, formatVersion: Int = 1, fixtureName: String = "kerala-fixture") {
+    val fixture = JdbcPackDatabase::class.java.getResourceAsStream("/packs/$fixtureName.drivepal")
         ?: error("No fixture pack: build it with scripts/build_region_pack.py (see packs/kerala-fixture.osm)")
     fixture.use { input -> file.outputStream().use { input.copyTo(it) } }
     if (formatVersion != 1) {
