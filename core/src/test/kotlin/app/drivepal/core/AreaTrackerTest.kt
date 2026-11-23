@@ -195,6 +195,22 @@ class AreaTrackerTest {
     }
 
     @Test
+    fun `entering a state whose Malayalam name Nominatim knows carries that name`() {
+        val tracker = AreaTracker.starting(
+            nominatim = { position -> if (position.longitude < 4.03) TAMIL_NADU else KERALA },
+            clockMillis = { 0 },
+        )
+
+        val update = tracker.withPosition(start).tracker.withPosition(threeAndAHalfKilometresOn)
+
+        assertEquals(
+            listOf<AreaEvent>(AreaEvent.EnteredProvince("Kerala", wikidataId = "Q1186", names = mapOf("ml" to "കേരളം"))),
+            update.events,
+        )
+        assertEquals(Area("India", "Kerala", provinceWikidataId = "Q1186", provinceNames = mapOf("ml" to "കേരളം")), update.area)
+    }
+
+    @Test
     fun `after crossing a border the current area is the new one`() {
         val tracker = AreaTracker.starting(
             nominatim = { position -> if (position.longitude < 4.03) SOUTH_HOLLAND else ANTWERP },
@@ -255,3 +271,12 @@ private const val SOUTH_HOLLAND = """
 
 private const val UTRECHT = """{"address":{"state":"Utrecht","country":"Netherlands","country_code":"nl"}}"""
 private const val ANTWERP = """{"address":{"province":"Antwerp","country":"Belgium","country_code":"be"}}"""
+
+/** Shaped like a Nominatim `reverse?format=jsonv2&zoom=5&addressdetails=1&extratags=1&namedetails=1` response. */
+private const val KERALA = """
+{"addresstype":"state","name":"Kerala",
+ "address":{"state":"Kerala","country":"India","country_code":"in"},
+ "extratags":{"wikidata":"Q1186"},
+ "namedetails":{"name":"Kerala","name:en":"Kerala","name:ml":"കേരളം","name:hi":"केरल"}}
+"""
+private const val TAMIL_NADU = """{"addresstype":"state","address":{"state":"Tamil Nadu","country":"India"}}"""

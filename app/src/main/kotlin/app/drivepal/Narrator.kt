@@ -43,7 +43,7 @@ class Narrator(
 
     private var focusRequest: AudioFocusRequest? = null
     private var silentTrack: AudioTrack? = null
-    private var voiceTags: Set<String> = emptySet()
+    @Volatile private var voiceTags: Set<String> = emptySet()
     private var speechReady = false
     private var speechFailedToStart = false
     private val speech = TextToSpeech(context) { status ->
@@ -64,6 +64,9 @@ class Narrator(
 
     /** The speech engine is up and has voices. Until then nothing should be written for it to say. */
     val canSpeak: Boolean get() = speechReady
+
+    /** Whether a voice for [language] (a code such as "ml") is installed. False until the speech engine is up. */
+    fun hasVoice(language: String): Boolean = VoiceChoice.hasVoice(language, voiceTags)
 
     /** The speech engine failed to start, or has no voices at all: there is no point writing Stories. */
     val speechBroken: Boolean get() = speechFailedToStart

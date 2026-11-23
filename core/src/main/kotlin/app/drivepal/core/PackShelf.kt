@@ -45,7 +45,7 @@ object PackShelf {
         val manifest = readManifest(manifestFile) ?: throw PackRefused("${file.name} has an unreadable manifest")
         val region = manifest.string("region") ?: file.nameWithoutExtension
         val format = manifest["format_version"]?.jsonPrimitive?.intOrNull
-        if (format != SqlRegionPack.FORMAT_VERSION) throw PackRefused("The $region pack needs a newer DrivePal")
+        if (format == null || format !in SqlRegionPack.READABLE_FORMATS) throw PackRefused("The $region pack needs a newer DrivePal")
         val intact = manifest["size"]?.jsonPrimitive?.longOrNull == file.length() && manifest.string("sha256") == sha256(file)
         if (!intact) throw PackRefused("The $region pack is damaged")
         val pack = try {

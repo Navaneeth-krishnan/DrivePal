@@ -170,6 +170,7 @@ class TripService : Service() {
                     store = storage.told,
                     talkativeness = { preferences.talkativeness },
                     offline = shelf.pack?.let(::OfflineAreas),
+                    spokenLanguage = preferences.spokenLanguage,
                 )
                 TripSession.update { it.copy(offline = shelf.notice) }
             }

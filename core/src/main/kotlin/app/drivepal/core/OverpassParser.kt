@@ -53,5 +53,6 @@ private fun subjectOf(element: JsonObject): Subject? {
         position = Position(latitude, longitude),
         wikipediaTag = wikipedia,
         wikidataId = wikidata,
+        names = malayalamName(::tag)?.let { mapOf(SpokenLanguage.Malayalam.code to it) }.orEmpty(),
     )
 }

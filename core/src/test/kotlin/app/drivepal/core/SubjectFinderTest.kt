@@ -76,6 +76,25 @@ class SubjectFinderTest {
     }
 
     @Test
+    fun `a place with a Malayalam name carries it, and one without carries none`() {
+        val response = """
+            {"elements":[
+             {"type":"node","id":8008,"lat":52.041,"lon":4.041,"tags":{"place":"village","name":"Kumbanad","name:ml":"കുമ്പനാട്"}},
+             {"type":"node","id":8009,"lat":52.042,"lon":4.042,"tags":{"place":"locality","name":"Muttumon"}}
+            ]}
+        """
+        val finder = SubjectFinder(overpass = { response }, clockMillis = { 0 })
+
+        assertEquals(
+            listOf(
+                Subject("node/8008", "Kumbanad", SubjectKind.Town, Position(52.041, 4.041), names = mapOf("ml" to "കുമ്പനാട്")),
+                Subject("node/8009", "Muttumon", SubjectKind.Town, Position(52.042, 4.042)),
+            ),
+            finder.around(insideTile),
+        )
+    }
+
+    @Test
     fun `driving back through an area already seen does not ask Overpass again`() {
         var requests = 0
         val finder = SubjectFinder(overpass = { requests++; OVERPASS_RESPONSE }, clockMillis = { 0 })

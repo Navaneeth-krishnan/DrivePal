@@ -23,11 +23,19 @@ data class Area(
     /** The province's own Wikipedia page ("nl:Zuid-Holland") and Wikidata item, when Nominatim says: the exact Source. */
     val provinceWikipediaTag: String? = null,
     val provinceWikidataId: String? = null,
+    /** The province's name in other languages, by language code ("ml" to "കേരളം"). */
+    val provinceNames: Map<String, String> = emptyMap(),
 )
 
 sealed interface AreaEvent {
     data class EnteredCountry(val name: String) : AreaEvent
-    data class EnteredProvince(val name: String, val wikipediaTag: String? = null, val wikidataId: String? = null) : AreaEvent
+    /** [names]: the province's name in other languages, by language code ("ml" to "കേരളം"). */
+    data class EnteredProvince(
+        val name: String,
+        val wikipediaTag: String? = null,
+        val wikidataId: String? = null,
+        val names: Map<String, String> = emptyMap(),
+    ) : AreaEvent
 }
 
 /**
@@ -115,7 +123,7 @@ data class AreaTracker private constructor(
         // A province that was simply not known before (same country) is learned, not entered.
         val province = after.province
             ?.takeIf { before.country != after.country || (before.province != null && before.province != it) }
-            ?.let { AreaEvent.EnteredProvince(it, after.provinceWikipediaTag, after.provinceWikidataId) }
+            ?.let { AreaEvent.EnteredProvince(it, after.provinceWikipediaTag, after.provinceWikidataId, after.provinceNames) }
         return listOfNotNull(country, province)
     }
 
@@ -140,14 +148,20 @@ internal fun parseArea(json: String): Area? {
     val address = Json.parseToJsonElement(json).jsonObject["address"]?.jsonObject ?: return null
     fun part(key: String) = address[key]?.jsonPrimitive?.contentOrNull
     val country = part("country") ?: return null
-    // At zoom 5 the answer is the province itself, so its extra tags (Wikipedia, Wikidata) are the province's.
-    val tags = Json.parseToJsonElement(json).jsonObject["extratags"]?.jsonObject
-    val isProvince = Json.parseToJsonElement(json).jsonObject["addresstype"]?.jsonPrimitive?.contentOrNull in PROVINCE_TYPES
+    // At zoom 5 the answer is the province itself, so its extra tags (Wikipedia, Wikidata) and names are the province's.
+    val root = Json.parseToJsonElement(json).jsonObject
+    val isProvince = root["addresstype"]?.jsonPrimitive?.contentOrNull in PROVINCE_TYPES
+    val tags = root["extratags"]?.jsonObject?.takeIf { isProvince }
+    val names = root["namedetails"]?.jsonObject?.takeIf { isProvince }
     return Area(
         country = country,
         province = part("state") ?: part("province") ?: part("region"),
-        provinceWikipediaTag = tags?.takeIf { isProvince }?.get("wikipedia")?.jsonPrimitive?.contentOrNull,
-        provinceWikidataId = tags?.takeIf { isProvince }?.get("wikidata")?.jsonPrimitive?.contentOrNull,
+        provinceWikipediaTag = tags?.get("wikipedia")?.jsonPrimitive?.contentOrNull,
+        provinceWikidataId = tags?.get("wikidata")?.jsonPrimitive?.contentOrNull,
+        provinceNames = names
+            ?.let { malayalamName { key -> it[key]?.jsonPrimitive?.contentOrNull } }
+            ?.let { mapOf(SpokenLanguage.Malayalam.code to it) }
+            .orEmpty(),
     )
 }
 

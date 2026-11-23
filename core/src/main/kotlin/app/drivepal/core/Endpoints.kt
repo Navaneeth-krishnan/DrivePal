@@ -13,7 +13,7 @@ object Endpoints {
      * pages, which make an exact Source. The position is blurred to about a kilometre: only the province is needed.
      */
     fun nominatimReverse(position: Position): String =
-        "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=5&addressdetails=1&extratags=1&accept-language=en" +
+        "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=5&addressdetails=1&extratags=1&namedetails=1&accept-language=en" +
             "&lat=${blurred(position.latitude)}&lon=${blurred(position.longitude)}"
 
     /** The fallback for Nominatim, with the same blurring. */

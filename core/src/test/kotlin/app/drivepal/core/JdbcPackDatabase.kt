@@ -22,14 +22,14 @@ class JdbcPackDatabase(file: File) : PackDatabase, AutoCloseable {
 
 /**
  * Copies a fixture pack that scripts/build_region_pack.py builds from `packs/kerala-fixture.osm` (see that file),
- * so the reader is tested against the builder's own output. [formatVersion] other than 1 rewrites the copy's
+ * so the reader is tested against the builder's own output. [formatVersion], when given, rewrites the copy's
  * version, to stand for a pack from a later builder.
  */
-fun copyFixturePack(file: File, formatVersion: Int = 1, fixtureName: String = "kerala-fixture") {
+fun copyFixturePack(file: File, formatVersion: Int? = null, fixtureName: String = "kerala-fixture") {
     val fixture = JdbcPackDatabase::class.java.getResourceAsStream("/packs/$fixtureName.drivepal")
         ?: error("No fixture pack: build it with scripts/build_region_pack.py (see packs/kerala-fixture.osm)")
     fixture.use { input -> file.outputStream().use { input.copyTo(it) } }
-    if (formatVersion != 1) {
+    if (formatVersion != null) {
         DriverManager.getConnection("jdbc:sqlite:${file.absolutePath}").use { connection ->
             connection.prepareStatement("UPDATE meta SET value = ? WHERE key = 'format_version'").use {
                 it.setString(1, formatVersion.toString())

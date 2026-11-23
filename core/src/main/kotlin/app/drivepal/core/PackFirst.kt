@@ -13,7 +13,7 @@ class PackFirst(private val pack: RegionPack, private val online: SubjectSource)
         if (!areas.covers(position)) return online.subjectsAround(position, headingDegrees)
         val subjects = pack.placesWithin(boxAround(position)).map { place ->
             val kind = if (place.type == JUNCTION_TYPE) SubjectKind.Junction else SubjectKind.Town
-            Subject(place.id, place.name, kind, place.position)
+            Subject(place.id, place.name, kind, place.position, names = place.names)
         }
         return SubjectsAround(subjects, problem = null)
     }

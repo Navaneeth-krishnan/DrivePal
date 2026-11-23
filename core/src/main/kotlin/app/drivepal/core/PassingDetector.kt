@@ -13,7 +13,12 @@ data class Subject(
     val wikipediaTag: String? = null,
     /** The OpenStreetMap `wikidata` tag, such as "Q111". */
     val wikidataId: String? = null,
-)
+    /** The place's name in other languages, by language code: "ml" to "കുമ്പനാട്". [name] is said when there is none. */
+    val names: Map<String, String> = emptyMap(),
+) {
+    /** What to call the place when speaking [language]. */
+    fun nameIn(language: SpokenLanguage): String = names[language.code] ?: name
+}
 
 sealed interface PassingEvent {
     val subject: Subject

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import app.drivepal.core.AiProvider
 import app.drivepal.core.AiSettings
 import app.drivepal.core.ChatClient
+import app.drivepal.core.SpokenLanguage
 import android.os.Handler
 import android.os.Looper
 import app.drivepal.core.ChatMessage
@@ -112,6 +113,20 @@ fun SettingsScreen(back: () -> Unit) {
             }) { Text("Try it") }
         }
         message?.let { Text(it) }
+
+        Text("Spoken language", style = MaterialTheme.typography.titleMedium)
+        Text("The language place names are announced in, from the next Trip. Stories stay in English.")
+        val preferences = remember { AppPreferences(context) }
+        var spoken by remember { mutableStateOf(preferences.spokenLanguage) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SpokenLanguage.entries.forEach { choice ->
+                FilterChip(
+                    selected = spoken == choice,
+                    onClick = { spoken = choice; preferences.spokenLanguage = choice },
+                    label = { Text(choice.name) },
+                )
+            }
+        }
 
         Text("Memory", style = MaterialTheme.typography.titleMedium)
         Text("DrivePal does not repeat a Story it has told within about 30 days.")

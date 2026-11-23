@@ -225,6 +225,7 @@ class StoryDirector(
         Subject(
             provinceKey(area.country, name), name, SubjectKind.Province, NO_POSITION,
             wikipediaTag = area.provinceWikipediaTag ?: "en:$name", wikidataId = area.provinceWikidataId,
+            names = area.provinceNames,
         )
     }
 

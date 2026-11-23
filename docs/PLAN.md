@@ -129,6 +129,15 @@ Goal: drive a whole State or Province with no network at all, in Names mode (no 
 
 **Risks:** an offline text-to-speech voice must be installed on the phone (check at M7e rather than assume it); Geofabrik cuts boundary relations at the edge of its extracts, so the country polygon may not assemble (then the country comes from the region's `ISO3166-2` code or a builder argument); leaving the pack's boundaries hands over to online mid-ride, so a bad connection there leaves a gap; Stories and Landmarks offline are later work.
 
+### Malayalam Announcements (decided 2026-11-23)
+
+| Topic | Decision |
+|---|---|
+| **Scope** | A "Spoken language" setting (English or Malayalam) in Settings, read at Trip start. Malayalam covers the Announcements only; Stories stay in English, told without an Announcement in front (one voice speaks a whole Story, and the Story names its place). Malayalam Stories are later work, once the model's Malayalam has been heard |
+| **Names** | The Malayalam name (`name:ml`, or `name` when it is already in Malayalam script) when the map has one, otherwise the English-letter name read by the Malayalam voice (heard on the phone and found understandable; Malayalam names sound more natural). From packs (format 2 stores them), Overpass, and Nominatim (`namedetails`) for States. Countries and Landmarks from Wikipedia's map search stay in English letters |
+| **Sentences** | The name stands alone after a short label, so it needs no case ending: പുതിയ രാജ്യം / പുതിയ സംസ്ഥാനം: X; അടുത്ത സ്ഥലം: X; ഇപ്പോൾ കടന്നുപോയത്: X; മുന്നിൽ / പിന്നിൽ: X, ഏകദേശം 500 മീറ്റർ / ഒന്നര കിലോമീറ്റർ അകലെ; അടുത്ത ജംഗ്ഷൻ / ഇപ്പോൾ കടന്നുപോയ ജംഗ്ഷൻ: X |
+| **Voice** | Google's offline Malayalam voice. Without one the Trip speaks English and says so on the main screen |
+
 ### The AI part
 
 There is one `StoryWriter` interface, with one client for the **OpenAI-compatible chat completions API** (`POST /v1/chat/completions`). Switching provider means changing the base URL, model and key in settings:

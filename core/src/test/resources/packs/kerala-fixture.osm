@@ -1,5 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!--
+  Malayalam names: Pullad and Kerala are mapped with their name in Malayalam script, Kumbanad and Tamil Nadu with
+  a name:ml tag, the rest with none.
   A tiny made-up extract for the Region pack builder (scripts/build_region_pack.py). Boundaries are boxes:
   India 76-79 E, 8-10 N; Kerala (Q1186) 76-77 E with a hole at 76.4-76.5 E, 9.0-9.1 N that is Puducherry (Mahé);
   Tamil Nadu 77-78 E next door; Andhra Pradesh 78.5-79 E, which does not touch Kerala.
@@ -41,6 +43,7 @@
   <node id="13" lat="9.3640" lon="76.6900">
     <tag k="highway" v="motorway_junction"/>
     <tag k="name" v="Kumbanad"/>
+    <tag k="name:ml" v="കുമ്പനാട്"/>
   </node>
   <node id="14" lat="9.5355" lon="76.6761">
     <tag k="place" v="town"/>
@@ -120,6 +123,7 @@
     <tag k="boundary" v="administrative"/>
     <tag k="admin_level" v="4"/>
     <tag k="name" v="Tamil Nadu"/>
+    <tag k="name:ml" v="തമിഴ്നാട്"/>
     <tag k="wikidata" v="Q1445"/>
   </relation>
   <relation id="5">

@@ -272,4 +272,17 @@ class StoryDirectorAnnouncementTest {
         assertTrue(pick.announceOnly)
         assertNull(pick.source)
     }
+
+    @Test
+    fun `a state entered with a Malayalam name is announced with that name when speaking Malayalam`() {
+        val director = director()
+        val tamilNadu = Area("India", "Tamil Nadu", provinceNames = mapOf("ml" to "തമിഴ്നാട്"))
+
+        director.areaChanged(Area("India", "Kerala"), emptyList(), fromPack = true)
+        director.areaChanged(tamilNadu, listOf(AreaEvent.EnteredProvince("Tamil Nadu", names = mapOf("ml" to "തമിഴ്നാട്"))), fromPack = true)
+        val pick = director.pickAt(0, Talkativeness.Names)!!
+
+        assertEquals("തമിഴ്നാട്", pick.subject.nameIn(SpokenLanguage.Malayalam))
+        assertEquals("Tamil Nadu", pick.subject.nameIn(SpokenLanguage.English))
+    }
 }

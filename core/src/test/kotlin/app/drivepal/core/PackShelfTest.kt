@@ -64,10 +64,10 @@ class PackShelfTest {
 
     @Test
     fun `a pack from a newer builder is not used, and the driver is told to update the app`() {
-        copyFixturePack(pack, formatVersion = 2)
+        copyFixturePack(pack, formatVersion = 3)
         val sha256 = MessageDigest.getInstance("SHA-256").digest(pack.readBytes()).joinToString("") { "%02x".format(it) }
         manifest.writeText(
-            """{"file": "kerala-fixture.drivepal", "region": "Kerala", "format_version": 2, "size": ${pack.length()}, "sha256": "$sha256"}""",
+            """{"file": "kerala-fixture.drivepal", "region": "Kerala", "format_version": 3, "size": ${pack.length()}, "sha256": "$sha256"}""",
         )
 
         val shelf = PackShelf.open(listOf(folder), openDatabase)

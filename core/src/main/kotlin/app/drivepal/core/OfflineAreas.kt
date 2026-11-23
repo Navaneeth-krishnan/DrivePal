@@ -4,7 +4,7 @@ package app.drivepal.core
 class OfflineAreas(private val pack: RegionPack) {
 
     /** The Province and Country containing [position], or null where the pack knows no Area (the sea, beyond its neighbours). */
-    fun areaAt(position: Position): Area? = containing(position)?.let { Area(country = it.country, province = it.name) }
+    fun areaAt(position: Position): Area? = containing(position)?.let { Area(country = it.country, province = it.name, provinceNames = it.names) }
 
     /** True inside the pack's own region (not a neighbour, not an enclave cut out of it). */
     fun covers(position: Position): Boolean = containing(position)?.isRegion == true

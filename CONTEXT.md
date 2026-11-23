@@ -78,6 +78,10 @@ _Avoid_: Timeout, auto-stop, idle check
 How much DrivePal talks on a Trip: Names (only the Announcements), Normal (the default) or Chatty. It sets both the minimum gap between Stories and how long each Story is; only Chatty has Interludes.
 _Avoid_: Frequency, verbosity, chattiness, mode
 
+**Spoken language**:
+The language the Announcements are spoken in: English (the default) or Malayalam, chosen in Settings. In Malayalam a place is called by its Malayalam name when the map has one, and otherwise by its name as written in English letters. Stories stay in English.
+_Avoid_: Locale, voice language, translation
+
 ### Offline
 
 **Region pack**:

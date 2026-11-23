@@ -21,8 +21,8 @@ class SqlRegionPackTest {
         folder.deleteRecursively()
     }
 
-    private fun openPack(formatVersion: Int = 1): SqlRegionPack {
-        val file = File(folder, "kerala-$formatVersion.drivepal")
+    private fun openPack(formatVersion: Int? = null): SqlRegionPack {
+        val file = File(folder, "kerala-${formatVersion ?: "built"}.drivepal")
         copyFixturePack(file, formatVersion)
         return SqlRegionPack.open(JdbcPackDatabase(file).also { databases += it })
     }
@@ -42,9 +42,9 @@ class SqlRegionPackTest {
 
         assertEquals(
             listOf(
-                Subject("node/11", "Pullad", SubjectKind.Town, Position(9.3555, 76.6761)),
+                Subject("node/11", "Pullad", SubjectKind.Town, Position(9.3555, 76.6761), names = mapOf("ml" to "പുല്ലാട്")),
                 Subject("node/12", "Muttumon", SubjectKind.Town, Position(9.3601, 76.6830)),
-                Subject("node/13", "Kumbanad", SubjectKind.Junction, Position(9.3640, 76.6900)),
+                Subject("node/13", "Kumbanad", SubjectKind.Junction, Position(9.3640, 76.6900), names = mapOf("ml" to "കുമ്പനാട്")),
                 Subject("node/15", "Thottabhagam", SubjectKind.Town, Position(9.3490, 76.6750)),
                 Subject("way/21", "Kattode", SubjectKind.Town, Position(9.362, 76.672)),
             ),
@@ -56,9 +56,9 @@ class SqlRegionPackTest {
     fun `the areas read from the pack give the same answers as the boundaries they were written from`() {
         val areas = OfflineAreas(openPack())
 
-        assertEquals(Area("India", "Kerala"), areas.areaAt(Position(9.5, 76.5)))
+        assertEquals(Area("India", "Kerala", provinceNames = mapOf("ml" to "കേരളം")), areas.areaAt(Position(9.5, 76.5)))
         assertEquals(Area("India", "Puducherry"), areas.areaAt(Position(9.05, 76.45)))
-        assertEquals(Area("India", "Tamil Nadu"), areas.areaAt(Position(9.5, 77.5)))
+        assertEquals(Area("India", "Tamil Nadu", provinceNames = mapOf("ml" to "തമിഴ്നാട്")), areas.areaAt(Position(9.5, 77.5)))
         assertNull(areas.areaAt(Position(9.5, 75.5)))
         // A province that does not touch the region is left out of its pack.
         assertNull(areas.areaAt(Position(9.5, 78.75)))
@@ -78,9 +78,21 @@ class SqlRegionPackTest {
     }
 
     @Test
-    fun `a pack in a format this app does not know is refused, saying why`() {
-        val refused = assertFailsWith<UnsupportedRegionPack> { openPack(formatVersion = 2) }
+    fun `a pack built before Malayalam names (format 1) is still read, its places and areas named only in English`() {
+        val file = File(folder, "kerala-format1.drivepal")
+        copyFixturePack(file, fixtureName = "kerala-fixture-format1")
+        val pack = SqlRegionPack.open(JdbcPackDatabase(file).also { databases += it })
 
-        assertEquals("Region pack format 2 is not supported (this app reads format 1)", refused.message)
+        val pullad = PackFirst(pack, noOnline).subjectsAround(Position(9.3570, 76.6780)).subjects.first { it.id == "node/11" }
+
+        assertEquals(Subject("node/11", "Pullad", SubjectKind.Town, Position(9.3555, 76.6761)), pullad)
+        assertEquals(Area("India", "Kerala"), OfflineAreas(pack).areaAt(Position(9.5, 76.5)))
+    }
+
+    @Test
+    fun `a pack in a format this app does not know is refused, saying why`() {
+        val refused = assertFailsWith<UnsupportedRegionPack> { openPack(formatVersion = 3) }
+
+        assertEquals("Region pack format 3 is not supported (this app reads formats 1 and 2)", refused.message)
     }
 }

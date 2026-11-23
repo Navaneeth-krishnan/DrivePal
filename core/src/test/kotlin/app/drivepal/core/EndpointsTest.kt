@@ -19,6 +19,11 @@ class EndpointsTest {
     }
 
     @Test
+    fun `Nominatim is asked for the province's names in other languages`() {
+        assertTrue("namedetails=1" in Endpoints.nominatimReverse(kinderdijk))
+    }
+
+    @Test
     fun `the position sent to Nominatim and Photon is blurred to about a kilometre`() {
         for (url in listOf(Endpoints.nominatimReverse(kinderdijk), Endpoints.photonReverse(kinderdijk))) {
             assertTrue("lat=51.89&lon=4.64" in url || "lon=4.64&lat=51.89" in url, url)

@@ -26,6 +26,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sqlite3
 import sys
 from dataclasses import dataclass
@@ -37,7 +38,7 @@ from shapely.geometry import Point, mapping
 from shapely.ops import unary_union
 from shapely.prepared import prep
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2  # 2: places and areas carry their name in other languages (Malayalam)
 PLACE_TYPES = {"city", "town", "village", "suburb", "hamlet", "locality"}
 JUNCTION_TYPE = "motorway_junction"
 CELL_DEGREES = 0.05
@@ -46,6 +47,7 @@ SIMPLIFY_DEGREES = 0.0005  # about 50 m
 BEYOND_BORDER_DEGREES = 0.027  # about 3 km: the Passing range just outside the region
 NEIGHBOUR_DEGREES = 0.01  # touching, allowing for boundaries mapped a little apart
 DECIMALS = 6  # about 0.1 m
+MALAYALAM_SCRIPT = re.compile(r"[\u0D00-\u0D7F]")
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,7 @@ class Boundary:
     geometry: object
     wikipedia: str | None
     wikidata: str | None
+    names: str | None
 
 
 @dataclass(frozen=True)
@@ -66,11 +69,19 @@ class Place:
     lon: float
     wikipedia: str | None
     wikidata: str | None
+    names: str | None
 
 
 def name_of(tags) -> str | None:
     """The English name when tagged, as the app does online."""
     return tags.get("name:en") or tags.get("name")
+
+
+def other_names(tags) -> str | None:
+    """The name in other languages, as JSON by language code: {"ml": "കേരളം"}. Malayalam is `name:ml`, or else `name`
+    when that is already in Malayalam script; the app reads Overpass tags with the same rule."""
+    malayalam = tags.get("name:ml") or (tags.get("name") if MALAYALAM_SCRIPT.search(tags.get("name", "")) else None)
+    return json.dumps({"ml": malayalam}, ensure_ascii=False) if malayalam else None
 
 
 def read_extract(path: Path) -> tuple[list[Boundary], list[Place]]:
@@ -91,19 +102,21 @@ def read_extract(path: Path) -> tuple[list[Boundary], list[Place]]:
         if item.is_node():
             kind = place_type(tags)
             if kind is not None:
-                places.append(Place(f"node/{item.id}", name, kind, item.lat, item.lon, tags.get("wikipedia"), tags.get("wikidata")))
+                places.append(Place(f"node/{item.id}", name, kind, item.lat, item.lon, tags.get("wikipedia"), tags.get("wikidata"), other_names(tags)))
         elif item.is_area():
             geometry = shape_of(item, to_shape)
             if geometry is None:
                 continue
             level = tags.get("admin_level")
             if tags.get("boundary") == "administrative" and level in ("2", "4") and not item.from_way():
-                boundaries.append(Boundary(int(level), name, geometry, tags.get("wikipedia"), tags.get("wikidata")))
+                boundaries.append(Boundary(int(level), name, geometry, tags.get("wikipedia"), tags.get("wikidata"), other_names(tags)))
             kind = tags.get("place")
             if kind in PLACE_TYPES:
                 centre = geometry.centroid
                 osm_type = "way" if item.from_way() else "relation"
-                places.append(Place(f"{osm_type}/{item.orig_id()}", name, kind, centre.y, centre.x, tags.get("wikipedia"), tags.get("wikidata")))
+                places.append(
+                    Place(f"{osm_type}/{item.orig_id()}", name, kind, centre.y, centre.x, tags.get("wikipedia"), tags.get("wikidata"), other_names(tags))
+                )
     return boundaries, places
 
 
@@ -192,12 +205,12 @@ def build(extract: Path, wikidata: list[str], name: str | None, output: Path, co
         }
         db.executemany("INSERT INTO meta VALUES (?, ?)", sorted(meta.items()))
         db.executemany(
-            "INSERT INTO places VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [(p.id, p.name, p.type, round(p.lat, DECIMALS), round(p.lon, DECIMALS), cell_of(p.lat, p.lon), p.wikipedia, p.wikidata) for p in kept],
+            "INSERT INTO places VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(p.id, p.name, p.type, round(p.lat, DECIMALS), round(p.lon, DECIMALS), cell_of(p.lat, p.lon), p.wikipedia, p.wikidata, p.names) for p in kept],
         )
         db.executemany(
-            "INSERT INTO areas (name, country, is_region, south, west, north, east, polygons, wikipedia, wikidata) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO areas (name, country, is_region, south, west, north, east, polygons, wikipedia, wikidata, names) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [area_row(a, any(a is r for r in regions), country_of(a, countries, country)) for a in areas],
         )
     with sqlite3.connect(partial) as db:
@@ -209,7 +222,7 @@ def build(extract: Path, wikidata: list[str], name: str | None, output: Path, co
 
 def area_row(area: Boundary, is_region: bool, country: str):
     west, south, east, north = area.geometry.bounds
-    return (area.name, country, 1 if is_region else 0, south, west, north, east, polygons_json(area.geometry), area.wikipedia, area.wikidata)
+    return (area.name, country, 1 if is_region else 0, south, west, north, east, polygons_json(area.geometry), area.wikipedia, area.wikidata, area.names)
 
 
 def write_manifest(pack: Path, region: str) -> None:
@@ -221,11 +234,11 @@ def write_manifest(pack: Path, region: str) -> None:
 SCHEMA = """
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE places (id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL,
-    lat REAL NOT NULL, lon REAL NOT NULL, cell INTEGER NOT NULL, wikipedia TEXT, wikidata TEXT);
+    lat REAL NOT NULL, lon REAL NOT NULL, cell INTEGER NOT NULL, wikipedia TEXT, wikidata TEXT, names TEXT);
 CREATE INDEX places_cell ON places (cell);
 CREATE TABLE areas (id INTEGER PRIMARY KEY, name TEXT NOT NULL, country TEXT NOT NULL, is_region INTEGER NOT NULL,
     south REAL NOT NULL, west REAL NOT NULL, north REAL NOT NULL, east REAL NOT NULL,
-    polygons TEXT NOT NULL, wikipedia TEXT, wikidata TEXT);
+    polygons TEXT NOT NULL, wikipedia TEXT, wikidata TEXT, names TEXT);
 """
 
 

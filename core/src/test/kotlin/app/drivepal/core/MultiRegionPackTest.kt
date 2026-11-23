@@ -49,7 +49,7 @@ class MultiRegionPackTest {
         assertTrue(areas.covers(Position(9.5, 76.5)))
         assertTrue(areas.covers(Position(9.5, 77.5)))
         assertFalse(areas.covers(Position(9.05, 76.45)))
-        assertEquals(Area("India", "Tamil Nadu"), areas.areaAt(Position(9.5, 77.5)))
+        assertEquals(Area("India", "Tamil Nadu", provinceNames = mapOf("ml" to "തമിഴ്നാട്")), areas.areaAt(Position(9.5, 77.5)))
         assertEquals(null, areas.areaAt(Position(9.5, 78.75)))
     }
 }

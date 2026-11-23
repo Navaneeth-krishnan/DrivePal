@@ -12,6 +12,7 @@ import app.drivepal.core.Position
 import app.drivepal.core.Relation
 import app.drivepal.core.SourceLibrary
 import app.drivepal.core.SourceLookup
+import app.drivepal.core.SpokenLanguage
 import app.drivepal.core.StoryBrief
 import app.drivepal.core.StoryDirector
 import app.drivepal.core.StoryKind
@@ -54,6 +55,8 @@ class Exploration(
     private val talkativeness: () -> Talkativeness,
     /** The Areas of the Region pack in use, if any: asked before the online map services. */
     offline: OfflineAreas? = null,
+    /** The language of the Announcements, chosen in Settings. Stories stay in English. */
+    private val spokenLanguage: SpokenLanguage = SpokenLanguage.English,
     wallClockMillis: () -> Long = System::currentTimeMillis,
 ) {
     private val handler = Handler(Looper.getMainLooper())
@@ -77,6 +80,7 @@ class Exploration(
     )
     private var writing = false
     private var warnedAboutSpeech = false
+    private val warnedAboutVoice = AtomicBoolean(false)
 
     // Loader thread:
     private var areaTracker = AreaTracker.starting(NominatimHttp, SystemClock::elapsedRealtime, PhotonHttp, offline)
@@ -163,11 +167,12 @@ class Exploration(
     }
 
     private fun write(pick: Pick, relation: Relation?, earlier: List<String>, talk: Talkativeness): Utterance? {
-        val announced = announcement(pick.kind, pick.subject.name, relation, pick.distanceMeters)
+        val speaking = speakingLanguage()
+        val announced = announcement(pick.kind, pick.subject.nameIn(speaking), relation, pick.distanceMeters, speaking)
         val source = pick.source
         if (pick.announceOnly || source == null) {
             // Names mode, or nothing to tell about this place: just say where we are, without asking the AI.
-            return Utterance(pick.key, "", "en", title = pick.title, kind = pick.kind, announcement = announced)
+            return Utterance(pick.key, "", speaking.code, title = pick.title, kind = pick.kind, announcement = announced)
         }
         val brief = StoryBrief(pick.subject.name, pick.kind, source, talk, relation, earlier)
         val result = writer.write(brief) ?: return null
@@ -179,10 +184,20 @@ class Exploration(
         return Utterance(
             pick.key, text, language, title = pick.title,
             kind = pick.kind, sourceLanguage = pick.articleLanguage, sourceTitle = pick.articleTitle,
-            // The announcement is English: not read out in front of an article that fell back to another language.
+            // The announcement goes with an English Story only: not in front of an article that fell back to another
+            // language, nor in Malayalam (one voice speaks the whole Story, and the Story names its place anyway).
             // And not said twice: if the name was already announced while the last Story's gap ran, the Story just begins.
-            announcement = announced.takeIf { language == "en" && !pick.nameAlreadySaid },
+            announcement = announced.takeIf { language == "en" && speaking == SpokenLanguage.English && !pick.nameAlreadySaid },
         )
+    }
+
+    /** The chosen language, or English when its voice is not installed (saying so once): English rather than silence. */
+    private fun speakingLanguage(): SpokenLanguage {
+        if (spokenLanguage == SpokenLanguage.English || narrator.hasVoice(spokenLanguage.code)) return spokenLanguage
+        if (warnedAboutVoice.compareAndSet(false, true)) {
+            show { it.copy(notice = "${spokenLanguage.name} voice is not installed, so DrivePal speaks English") }
+        }
+        return SpokenLanguage.English
     }
 
     private fun loadAround(position: Position) {
