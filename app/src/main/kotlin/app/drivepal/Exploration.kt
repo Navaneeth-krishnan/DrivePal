@@ -21,7 +21,8 @@ import app.drivepal.core.announcement
 import app.drivepal.core.StoryScheduler
 import app.drivepal.core.StoryWriter
 import app.drivepal.core.Subject
-import app.drivepal.core.SubjectFinder
+import app.drivepal.core.OfflineAreas
+import app.drivepal.core.SubjectSource
 import app.drivepal.core.SubjectKind
 import app.drivepal.core.Talkativeness
 import app.drivepal.core.ToldStore
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * - **main**: the [PassingDetector] (arithmetic on subjects already loaded, so every GPS fix is judged straight
  *   away, however slow the network is) and the [StoryDirector].
- * - **loader**: the [AreaTracker] and the [SubjectFinder] (Nominatim, Overpass and their fallbacks). Slow.
+ * - **loader**: the [AreaTracker] and the [places] (a Region pack, or Nominatim, Overpass and their fallbacks). Slow online.
  * - **lookups**: Source lookups (Wikipedia, Wikidata) for subjects and Areas, and retries of the failed ones.
  * - **writers**: the AI server writing one Story. Slow, so it has its own thread.
  *
@@ -45,12 +46,14 @@ import java.util.concurrent.atomic.AtomicInteger
  * candidate that is still relevant and not yet Told, and only then is the AI asked.
  */
 class Exploration(
-    private val finder: SubjectFinder,
+    private val places: SubjectSource,
     private val sources: SourceLibrary,
     private val writer: StoryWriter,
     private val narrator: Narrator,
     store: ToldStore,
     private val talkativeness: () -> Talkativeness,
+    /** The Areas of the Region pack in use, if any: asked before the online map services. */
+    offline: OfflineAreas? = null,
     wallClockMillis: () -> Long = System::currentTimeMillis,
 ) {
     private val handler = Handler(Looper.getMainLooper())
@@ -76,7 +79,7 @@ class Exploration(
     private var warnedAboutSpeech = false
 
     // Loader thread:
-    private var areaTracker = AreaTracker.starting(NominatimHttp, SystemClock::elapsedRealtime, PhotonHttp)
+    private var areaTracker = AreaTracker.starting(NominatimHttp, SystemClock::elapsedRealtime, PhotonHttp, offline)
     private val loading = AtomicBoolean(false)
 
     // Lookups thread:
@@ -191,9 +194,9 @@ class Exploration(
                     val area = areaTracker.withPosition(position)
                     areaTracker = area.tracker
                     show { ui -> ui.copy(happenings = add(ui.happenings, area.events.map(::describe)), problem = area.problem) }
-                    post { onArea(area.area, area.events) }
+                    post { onArea(area.area, area.events, area.fromPack) }
 
-                    val found = finder.subjectsAround(position, heading)
+                    val found = places.subjectsAround(position, heading)
                     post { detector = detector.withSubjects(found.subjects) }
                     show { ui -> ui.copy(problem = area.problem ?: found.problem) }
                 }
@@ -203,9 +206,9 @@ class Exploration(
         }
     }
 
-    /** Where the driver is now. The director says which Areas' articles still need looking up. */
-    private fun onArea(area: Area?, events: List<AreaEvent>) {
-        director.areaChanged(area, events).forEach { subject -> lookups.execute { guarded { lookUp(subject) } } }
+    /** Where the driver is now. The director says which Areas' articles still need looking up (none for a pack's). */
+    private fun onArea(area: Area?, events: List<AreaEvent>, fromPack: Boolean) {
+        director.areaChanged(area, events, fromPack).forEach { subject -> lookups.execute { guarded { lookUp(subject) } } }
     }
 
     private fun lookUp(subject: Subject) {

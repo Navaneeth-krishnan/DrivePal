@@ -118,7 +118,7 @@ object OverpassHttp : OverpassClient {
             withWikiLink.joinToString("") { """nwr["historic"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["tourism"~"^(attraction|viewpoint|museum)$"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["man_made"~"^(lighthouse|windmill)$"]["name"]["$it"]$area;""" } +
-            """nwr["place"~"^(city|town|village)$"]["name"]$area;""" + // with or without an article: announced by name
+            """nwr["place"~"^(city|town|village|suburb|hamlet|locality)$"]["name"]$area;""" + // with or without an article: announced by name
             """node["highway"="motorway_junction"]["name"]$area;""" +
             ");out center tags;"
         return request(BuildConfig.OVERPASS_URL, body = "data=${encode(query)}", readTimeoutMillis = OVERPASS_READ_TIMEOUT_MILLIS)

@@ -22,6 +22,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import app.drivepal.core.ChatClient
 import app.drivepal.core.LoggedStory
+import app.drivepal.core.OfflineAreas
+import app.drivepal.core.PackFirst
+import app.drivepal.core.PackShelf
 import app.drivepal.core.TripLog
 import app.drivepal.core.Fix
 import app.drivepal.core.Position
@@ -48,6 +51,7 @@ class TripService : Service() {
     private var exploration: Exploration? = null
     private var narrator: Narrator? = null
     private var tripLog: TripLog? = null
+    private var packDatabase: AndroidPackDatabase? = null
 
     // An object, not a lambda: on Android 10 the other callbacks are abstract.
     private val locationListener = object : LocationListener {
@@ -129,15 +133,26 @@ class TripService : Service() {
         val problems = connection.settings.problems(connection.apiKey)
         // Settings are read once per Trip: a change in Settings applies from the next Trip.
         val writer = StoryWriter(ChatClient(AiHttp { connection }, connection.settings.chatSettings()))
+        // A Region pack in Android/data/app.drivepal/files/packs/ answers inside its region, with no network.
+        val shelf = PackShelf.open(packsFolder()) { file -> AndroidPackDatabase(file).also { packDatabase = it } }
         exploration = Exploration(
-            finder, sources, writer, voice,
+            places = shelf.pack?.let { PackFirst(it, finder) } ?: finder,
+            sources = sources,
+            writer = writer,
+            narrator = voice,
             store = storage.told,
             talkativeness = { preferences.talkativeness },
+            offline = shelf.pack?.let(::OfflineAreas),
         )
         tripLog = TripLog.load(storage.tripLog).startTrip(System.currentTimeMillis())
         shownState = TripState.Driving
         TripSession.update {
-            TripUi(running = true, state = TripState.Driving, notice = problems.firstOrNull()?.let { "AI settings: $it" })
+            TripUi(
+                running = true,
+                state = TripState.Driving,
+                notice = problems.firstOrNull()?.let { "AI settings: $it" },
+                offline = shelf.notice,
+            )
         }
         handler.postDelayed(tick, TICK_MILLIS)
     }
@@ -193,12 +208,21 @@ class TripService : Service() {
         }
     }
 
+    /** Where Region packs are copied to (adb push or a USB file transfer); no permission is needed to read it. */
+    private fun packsFolder() = getExternalFilesDir(PACKS_FOLDER) ?: java.io.File(filesDir, PACKS_FOLDER)
+
+    private fun closePack() {
+        packDatabase?.close()
+        packDatabase = null
+    }
+
     private fun endTrip() {
         handler.removeCallbacks(tick)
         tripLog?.endTrip(System.currentTimeMillis())
         tripLog = null
         exploration?.stop()
         exploration = null
+        closePack()
         narrator?.release()
         narrator = null
         if (monitor != null) locationManager.removeUpdates(locationListener)
@@ -218,6 +242,7 @@ class TripService : Service() {
     override fun onDestroy() {
         tripLog?.endTrip(System.currentTimeMillis())
         exploration?.stop()
+        closePack()
         narrator?.release()
         handler.removeCallbacks(tick)
         if (monitor != null) locationManager.removeUpdates(locationListener)
@@ -287,9 +312,11 @@ class TripService : Service() {
         private const val MS_TO_KMH = 3.6
         private const val NANOS_PER_MILLI = 1_000_000L
         private const val MAX_NARRATION = 6
+        private const val PACKS_FOLDER = "packs"
         private const val QUESTION = "Still on the road? Press play to keep going."
 
         // Process-wide so that what has been looked up is remembered from one Trip to the next.
         private val finder = SubjectFinder(OverpassHttp, SystemClock::elapsedRealtime, WikipediaGeoSearchHttp)
-        private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)    }
+        private val sources = SourceLibrary(WikipediaHttp, WikidataHttp, SystemClock::elapsedRealtime)
+    }
 }

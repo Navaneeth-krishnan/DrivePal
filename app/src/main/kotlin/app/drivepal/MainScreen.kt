@@ -68,6 +68,7 @@ fun MainScreen(ui: TripUi, openTripLog: () -> Unit, openSettings: () -> Unit) {
             style = MaterialTheme.typography.titleLarge,
         )
         ui.notice?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        ui.offline?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
         ui.problem?.let { Text("Place lookup: $it", color = MaterialTheme.colorScheme.error) }
         if (locationDenied) {
             Text(

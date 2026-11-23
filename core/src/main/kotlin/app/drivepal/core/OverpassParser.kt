@@ -9,7 +9,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-private val TOWN_PLACES = setOf("city", "town", "village")
+// The same kinds of place a Region pack holds, so online and offline sound alike.
+private val TOWN_PLACES = setOf("city", "town", "village", "suburb", "hamlet", "locality")
 
 /**
  * Turns an Overpass JSON response into Subjects. Elements without a name or a position are skipped. A Landmark also

@@ -54,6 +54,28 @@ class SubjectFinderTest {
     }
 
     @Test
+    fun `a suburb, a hamlet and a locality without an article are announced by name, as a Region pack would`() {
+        val response = """
+            {"elements":[
+             {"type":"node","id":7007,"lat":52.041,"lon":4.041,"tags":{"place":"suburb","name":"Thottabhagam"}},
+             {"type":"node","id":7008,"lat":52.042,"lon":4.042,"tags":{"place":"hamlet","name":"Muttumon"}},
+             {"type":"way","id":7009,"center":{"lat":52.043,"lon":4.043},"tags":{"place":"locality","name":"Kattode"}},
+             {"type":"node","id":7010,"lat":52.044,"lon":4.044,"tags":{"place":"isolated_dwelling","name":"Puthenveedu"}}
+            ]}
+        """
+        val finder = SubjectFinder(overpass = { response }, clockMillis = { 0 })
+
+        assertEquals(
+            listOf(
+                Subject(id = "node/7007", name = "Thottabhagam", kind = SubjectKind.Town, position = Position(52.041, 4.041)),
+                Subject(id = "node/7008", name = "Muttumon", kind = SubjectKind.Town, position = Position(52.042, 4.042)),
+                Subject(id = "way/7009", name = "Kattode", kind = SubjectKind.Town, position = Position(52.043, 4.043)),
+            ),
+            finder.around(insideTile),
+        )
+    }
+
+    @Test
     fun `driving back through an area already seen does not ask Overpass again`() {
         var requests = 0
         val finder = SubjectFinder(overpass = { requests++; OVERPASS_RESPONSE }, clockMillis = { 0 })
