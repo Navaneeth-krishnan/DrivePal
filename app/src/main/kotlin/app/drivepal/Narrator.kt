@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import app.drivepal.core.NarrationCommand
 import app.drivepal.core.NarrationController
 import app.drivepal.core.NarrationEvent
@@ -155,6 +156,7 @@ class Narrator(
             return
         }
         speech.language = Locale.forLanguageTag(tag)
+        if (BuildConfig.DEBUG) Log.i("DrivePal", "Say: ${command.text}") // debug builds only: lets a simulated drive be checked word for word
         if (speech.speak(command.text, TextToSpeech.QUEUE_FLUSH, null, command.speakId) != TextToSpeech.SUCCESS) {
             post { dispatch(NarrationEvent.SpeechFailed(command.speakId)) }
         }

@@ -204,5 +204,8 @@ object DebugRoutes {
         ),
     )
 
-    val all = listOf(kinderdijk, kozhencherry, e19IntoBelgium, pulladToThiruvalla)
+    /** The same road, steady at 90 km/h with no jams: about 9 minutes instead of 30, for a quick check of what is announced. */
+    val pulladToThiruvallaFast = DebugRoute(name = "Pullad to Thiruvalla (fast)", speedKmh = 90.0, points = pulladToThiruvalla.points)
+
+    val all = listOf(kinderdijk, kozhencherry, e19IntoBelgium, pulladToThiruvalla, pulladToThiruvallaFast)
 }

@@ -51,7 +51,7 @@ _Avoid_: Popularity, importance, score
 ### Trips
 
 **Trip**:
-One drive, from when the driver starts DrivePal until they stop it. Whatever surrounds the driver at the start (the Area, the Towns and Landmarks within range) counts as already there: nothing is entered or Passed at the start.
+One drive, from when the driver starts DrivePal until they stop it. Whatever surrounds the driver at the start (the Area, the Towns and Landmarks within about 1 km) counts as already there: nothing is entered or Passed at the start.
 _Avoid_: Drive, session, journey, ride
 
 **Told**:
@@ -78,10 +78,16 @@ _Avoid_: Timeout, auto-stop, idle check
 How much DrivePal talks on a Trip: Names (only the Announcements), Normal (the default) or Chatty. It sets both the minimum gap between Stories and how long each Story is; only Chatty has Interludes.
 _Avoid_: Frequency, verbosity, chattiness, mode
 
+### Offline
+
+**Region pack**:
+A single file for one State or Province that holds what DrivePal needs to name the places on a drive without a network: the places with their names, the named Junctions, and the boundaries of the Areas. Inside its region it replaces the online map services; outside, or without one, DrivePal goes online as before.
+_Avoid_: Map, offline map, download, database, cache
+
 ### Stories
 
 **Announcement**:
-The one line that says which place the driver is at ("You are entering Eraviperoor"), spoken before a Story, or on its own in Names mode. It states no facts about the place. Junctions are only ever announced.
+The one line that says which place the driver is at ("You are entering Eraviperoor"), spoken before a Story, or on its own in Names mode, or while the quiet gap after the last Story is still running, so no place is passed in silence. It states no facts about the place, is said once per place on a Trip, and only once the place is close (about 1 km). A Landmark is announced from further away (up to about 3 km) and says how far it is. Junctions are only ever announced.
 _Avoid_: Intro, heading, lead-in
 
 **Junction**:

@@ -18,6 +18,18 @@ class PassingDetectorTest {
     )
 
     @Test
+    fun `the distance to a place is measured from where the driver is now`() {
+        val beside = castle.copy(position = ROAD_START.moved(northMeters = 1_000.0, eastMeters = 400.0))
+        val detector = PassingDetector.watching(listOf(beside))
+
+        val distanceBeforeAnyFix = detector.distanceTo(beside)
+        val atTheStart = detector.withPosition(ROAD_START).detector
+
+        assertEquals(Double.POSITIVE_INFINITY, distanceBeforeAnyFix)
+        assertEquals(1_077.0, atTheStart.distanceTo(beside), 5.0) // sqrt(1000^2 + 400^2) = 1077 m
+    }
+
+    @Test
     fun `a landmark two and a half kilometres beside the motorway is passed`() {
         val (_, events) = PassingDetector.watching(listOf(castle))
             .driven(roadNorth(fromMeters = 0, toMeters = 20_000))
@@ -111,31 +123,45 @@ class PassingDetectorTest {
         assertFalse(pastTheCastle.isAhead(castle))
     }
 
+    // 400 m from the road and 10 km up it: within a kilometre of a trip that starts a little way on from there.
+    private val closeCastle = castle.copy(id = "close-castle", position = ROAD_START.moved(northMeters = 10_000.0, eastMeters = 400.0))
+
     @Test
-    fun `a landmark already within range when the trip starts is not announced, though it is known to be behind`() {
-        val (detector, events) = PassingDetector.watching(listOf(castle))
-            .driven(roadNorth(fromMeters = 11_000, toMeters = 11_400))
+    fun `a landmark within a kilometre when the trip starts is not announced, though it is known to be behind`() {
+        val (detector, events) = PassingDetector.watching(listOf(closeCastle))
+            .driven(roadNorth(fromMeters = 10_500, toMeters = 10_900))
 
         assertEquals(emptyList<PassingEvent>(), events)
-        assertFalse(detector.isAhead(castle))
-        assertEquals(listOf(castle), detector.relevantSubjects)
+        assertFalse(detector.isAhead(closeCastle))
+        assertEquals(listOf(closeCastle), detector.relevantSubjects)
     }
 
     @Test
-    fun `places around the start are not announced even when they are loaded a moment after the first position`() {
-        val atTheStart = PassingDetector.watching(emptyList()).driven(roadNorth(fromMeters = 9_000, toMeters = 9_000)).first
+    fun `places within a kilometre of the start are not announced even when they are loaded a moment after the first position`() {
+        val atTheStart = PassingDetector.watching(emptyList()).driven(roadNorth(fromMeters = 9_500, toMeters = 9_500)).first
 
-        val (_, events) = atTheStart.withSubjects(listOf(castle)).driven(roadNorth(fromMeters = 9_140, toMeters = 14_000))
+        val (_, events) = atTheStart.withSubjects(listOf(closeCastle)).driven(roadNorth(fromMeters = 9_640, toMeters = 14_000))
 
         assertEquals(emptyList<PassingEvent>(), events)
+    }
+
+    @Test
+    fun `a place two and a half kilometres from where the trip starts is announced, one right at the start is not`() {
+        val atTheStart = castle.copy(id = "start", position = ROAD_START.moved(northMeters = 100.0, eastMeters = 200.0))
+        val ahead = castle.copy(id = "ahead", position = ROAD_START.moved(northMeters = 2_500.0, eastMeters = 100.0))
+
+        val (_, events) = PassingDetector.watching(listOf(atTheStart, ahead))
+            .driven(roadNorth(fromMeters = 0, toMeters = 5_000))
+
+        assertEquals(listOf<PassingEvent>(PassingEvent.Passing(ahead)), events)
     }
 
     @Test
     fun `a place further along the road is still announced when others were around at the start`() {
         val furtherOn = castle.copy(id = "mill", position = ROAD_START.moved(northMeters = 16_000.0, eastMeters = 2_000.0))
 
-        val (_, events) = PassingDetector.watching(listOf(castle, furtherOn))
-            .driven(roadNorth(fromMeters = 9_000, toMeters = 20_000))
+        val (_, events) = PassingDetector.watching(listOf(closeCastle, furtherOn))
+            .driven(roadNorth(fromMeters = 9_500, toMeters = 20_000))
 
         assertEquals(listOf<PassingEvent>(PassingEvent.Passing(furtherOn)), events)
     }

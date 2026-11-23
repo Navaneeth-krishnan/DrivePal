@@ -69,6 +69,7 @@ class Exploration(
             interludeAfterMillis = BuildConfig.INTERLUDE_AFTER_SECONDS * 1000L,
         ),
         isPlaceRelevant = { id -> detector.relevantSubjects.any { it.id == id } },
+        distanceMeters = { subject -> detector.distanceTo(subject) },
         wallClockMillis = wallClockMillis,
     )
     private var writing = false
@@ -159,7 +160,7 @@ class Exploration(
     }
 
     private fun write(pick: Pick, relation: Relation?, earlier: List<String>, talk: Talkativeness): Utterance? {
-        val announced = announcement(pick.kind, pick.subject.name, relation)
+        val announced = announcement(pick.kind, pick.subject.name, relation, pick.distanceMeters)
         val source = pick.source
         if (pick.announceOnly || source == null) {
             // Names mode, or nothing to tell about this place: just say where we are, without asking the AI.
@@ -176,12 +177,14 @@ class Exploration(
             pick.key, text, language, title = pick.title,
             kind = pick.kind, sourceLanguage = pick.articleLanguage, sourceTitle = pick.articleTitle,
             // The announcement is English: not read out in front of an article that fell back to another language.
-            announcement = announced.takeIf { language == "en" },
+            // And not said twice: if the name was already announced while the last Story's gap ran, the Story just begins.
+            announcement = announced.takeIf { language == "en" && !pick.nameAlreadySaid },
         )
     }
 
     private fun loadAround(position: Position) {
         if (!loading.compareAndSet(false, true)) return
+        val heading = detector.headingDegrees
         loader.execute {
             try {
                 guarded {
@@ -190,7 +193,7 @@ class Exploration(
                     show { ui -> ui.copy(happenings = add(ui.happenings, area.events.map(::describe)), problem = area.problem) }
                     post { onArea(area.area, area.events) }
 
-                    val found = finder.subjectsAround(position)
+                    val found = finder.subjectsAround(position, heading)
                     post { detector = detector.withSubjects(found.subjects) }
                     show { ui -> ui.copy(problem = area.problem ?: found.problem) }
                 }
@@ -212,7 +215,7 @@ class Exploration(
             retryCount.set(retrying.size)
         }
         say(describePassing(subject, lookup))
-        if (lookup is SourceLookup.Found) post { director.sourceFound(subject, lookup.source) }
+        post { director.lookupDone(subject, lookup) }
     }
 
     /** Asks again for subjects whose lookup failed, while they are still close enough to matter. */
@@ -240,7 +243,7 @@ class Exploration(
                 is SourceLookup.Unavailable -> Unit
                 else -> {
                     say(describePassing(subject, lookup))
-                    if (lookup is SourceLookup.Found) post { director.sourceFound(subject, lookup.source) }
+                    post { director.lookupDone(subject, lookup) }
                 }
             }
         }

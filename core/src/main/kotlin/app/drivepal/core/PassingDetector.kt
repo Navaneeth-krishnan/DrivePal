@@ -37,13 +37,16 @@ data class PassingDetector private constructor(
     val headingDegrees: Double?,
     /** The last position the heading was measured from; GPS noise near it is ignored. */
     private val headingAnchor: Position?,
-    /** Where the Trip began. Places within range of it are already around, so they are never announced. */
+    /** Where the Trip began. Places within a kilometre of it are already around, so they are never announced. */
     private val startPosition: Position?,
 ) {
     /** Subjects still close enough to talk about: within the Passing range, ahead or behind. */
     val relevantSubjects: List<Subject>
         get() = position?.let { here -> subjects.filter { distanceMeters(here, it.position) <= rangeMeters(it) } }
             ?: emptyList()
+
+    /** How far [subject] is from the driver now, in metres; infinite before the first position. */
+    fun distanceTo(subject: Subject): Double = position?.let { distanceMeters(it, subject.position) } ?: Double.POSITIVE_INFINITY
 
     /** True if [subject] lies in front of the driver. With no heading yet, everything counts as ahead. */
     fun isAhead(subject: Subject): Boolean {
@@ -56,9 +59,9 @@ data class PassingDetector private constructor(
     /** Replaces the subjects being watched (new map tiles loaded). Subjects already Passed stay announced. */
     fun withSubjects(newSubjects: List<Subject>): PassingDetector = copy(subjects = newSubjects)
 
-    /** True if [subject] was already within range where the Trip began (judged from the first position). */
+    /** True if [subject] was already close where the Trip began (judged from the first position). */
     private fun aroundTheStart(subject: Subject, now: Position): Boolean =
-        distanceMeters(startPosition ?: now, subject.position) <= rangeMeters(subject)
+        distanceMeters(startPosition ?: now, subject.position) <= minOf(rangeMeters(subject), AROUND_THE_START_METERS)
 
     /** How close the route came to [subject], counting the straight path since the last position. */
     private fun distanceFromRoute(subject: Subject, now: Position): Double =
@@ -84,6 +87,7 @@ data class PassingDetector private constructor(
 
     companion object {
         private const val PASSING_RANGE_METERS = 3_000.0
+        private const val AROUND_THE_START_METERS = 1_000.0 // as close as a name is announced
         private const val JUNCTION_RANGE_METERS = 300.0 // a junction is a point on the road, not a place in sight
 
         private fun rangeMeters(subject: Subject) =

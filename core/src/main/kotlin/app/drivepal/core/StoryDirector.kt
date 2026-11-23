@@ -6,6 +6,8 @@ package app.drivepal.core
  * [source] for an Interlude (a section of an Area's article). With [announceOnly] only the place's name is said, no
  * Story: the driver chose Names mode, or the place has no Source (a Junction, a village without an article).
  * [key] is what the Told memory records, so an announcement and a Story about one place are remembered apart.
+ * [distanceMeters]: how far the place was when it was picked (0 for an Area or Interlude).
+ * [nameAlreadySaid]: the place's name was already announced on this Trip, so its Story needs no Announcement.
  */
 class Pick(
     val key: String,
@@ -16,6 +18,8 @@ class Pick(
     val articleLanguage: String?,
     val articleTitle: String?,
     val announceOnly: Boolean = false,
+    val nameAlreadySaid: Boolean = false,
+    val distanceMeters: Double = 0.0,
 )
 
 /**
@@ -34,6 +38,8 @@ class StoryDirector(
     private var scheduler: StoryScheduler,
     private val isPlaceRelevant: (subjectId: String) -> Boolean,
     private val wallClockMillis: () -> Long,
+    /** How far a place is from the driver now. Not asked for Areas or Interludes. */
+    private val distanceMeters: (Subject) -> Double = { 0.0 },
 ) {
     private class Ready(val candidate: Candidate, val subject: Subject, val source: Source?, val article: Source? = source)
 
@@ -50,6 +56,7 @@ class StoryDirector(
     private var currentCountryKey: String? = null
     private var currentProvinceKey: String? = null
     private var toldTitles: List<String> = emptyList()
+    private val namesSaid = HashSet<String>() // places announced on this Trip
 
     /**
      * The driver is now in [area], having just entered [events]. Returns the Areas whose articles must be looked up.
@@ -83,6 +90,18 @@ class StoryDirector(
         if (subject.id in enteredAreas) addCandidate(subject, source)
     }
 
+    /**
+     * What the Source lookup for [subject] came to. A place whose article is too thin for a Story is still announced by
+     * name; a failed lookup says nothing, since it is asked again.
+     */
+    fun lookupDone(subject: Subject, lookup: SourceLookup) = when (lookup) {
+        is SourceLookup.Found -> sourceFound(subject, lookup.source)
+        SourceLookup.NotStoryWorthy -> if (isPlace(subject)) placeFound(subject) else Unit
+        is SourceLookup.Unavailable -> Unit
+    }
+
+    private fun isPlace(subject: Subject) = subject.kind == SubjectKind.Town || subject.kind == SubjectKind.Landmark
+
     /** A place with nothing to tell (a Junction, a village without an article) that is only announced by name. */
     fun placeFound(subject: Subject) = addCandidate(subject, source = null)
 
@@ -100,12 +119,17 @@ class StoryDirector(
             standstill = standstill,
             isRelevant = { ready(it.key)?.let(::isRelevant) ?: false },
             isTold = { candidate -> ready(candidate.key)?.let { memory.isTold(toldKey(it, namesOnly), wallNow) } ?: true },
+            isNameSaid = { candidate -> memory.isTold("$NAME_PREFIX${candidate.key}", wallNow) },
+            distanceMeters = { candidate -> ready(candidate.key)?.takeIf { isPlace(it.candidate.kind) }?.let { distanceMeters(it.subject) } ?: 0.0 },
         ) ?: return null
-        val ready = ready(chosen.key) ?: return null
+        val ready = ready(chosen.candidate.key) ?: return null
+        val announceOnly = namesOnly || ready.source == null || chosen.announceOnly
         val title = if (ready.candidate.kind == StoryKind.Interlude) "${ready.subject.name}: ${ready.source?.title}" else ready.subject.name
         return Pick(
-            toldKey(ready, namesOnly), ready.candidate.kind, ready.subject, ready.source, title,
-            ready.article?.language, ready.article?.title, announceOnly = namesOnly || ready.source == null,
+            toldKey(ready, announceOnly), ready.candidate.kind, ready.subject, ready.source, title,
+            ready.article?.language, ready.article?.title, announceOnly = announceOnly,
+            nameAlreadySaid = !announceOnly && ready.candidate.key in namesSaid,
+            distanceMeters = if (isPlace(ready.candidate.kind)) distanceMeters(ready.subject) else 0.0,
         )
     }
 
@@ -119,8 +143,13 @@ class StoryDirector(
     fun storyEnded(key: String, title: String, outcome: StoryOutcome, nowMillis: Long) {
         memory = memory.recording(outcome, key, wallClockMillis())
         if (outcome != StoryOutcome.Dropped) {
-            scheduler = scheduler.storyEnded(nowMillis, if (key.startsWith(INTERLUDE_PREFIX)) StoryKind.Interlude else null)
+            scheduler = if (key.startsWith(NAME_PREFIX)) {
+                scheduler.announcementEnded(nowMillis)
+            } else {
+                scheduler.storyEnded(nowMillis, if (key.startsWith(INTERLUDE_PREFIX)) StoryKind.Interlude else null)
+            }
         }
+        if (key.startsWith(NAME_PREFIX) && outcome != StoryOutcome.Dropped) namesSaid += key.removePrefix(NAME_PREFIX)
         if (outcome == StoryOutcome.Told || outcome == StoryOutcome.Skipped) toldTitles = toldTitles + title
         if (outcome == StoryOutcome.Dropped) {
             unspoken += key.removePrefix(NAME_PREFIX)
@@ -130,6 +159,8 @@ class StoryDirector(
 
     /** The names of the last [count] Stories told on this Trip, for the AI to link back to. */
     fun earlierTitles(count: Int): List<String> = toldTitles.takeLast(count)
+
+    private fun isPlace(kind: StoryKind) = kind == StoryKind.Town || kind == StoryKind.Landmark || kind == StoryKind.Junction
 
     private fun ready(key: String): Ready? = pool[key] ?: interludes[key]
 
@@ -142,8 +173,8 @@ class StoryDirector(
     }
 
     /** What the Told memory records: a name said on its own is not the Story, so it must not use it up. */
-    private fun toldKey(ready: Ready, namesOnly: Boolean) =
-        if (namesOnly || ready.source == null) "$NAME_PREFIX${ready.candidate.key}" else ready.candidate.key
+    private fun toldKey(ready: Ready, announceOnly: Boolean) =
+        if (announceOnly || ready.source == null) "$NAME_PREFIX${ready.candidate.key}" else ready.candidate.key
 
     private fun addCandidate(subject: Subject, source: Source?) {
         val kind = when (subject.kind) {
@@ -153,7 +184,7 @@ class StoryDirector(
             SubjectKind.Landmark -> StoryKind.Landmark
             SubjectKind.Junction -> StoryKind.Junction
         }
-        pool[subject.id] = Ready(Candidate(subject.id, kind, source?.notability ?: Notability(0, 0)), subject, source)
+        pool[subject.id] = Ready(Candidate(subject.id, kind, source?.notability ?: Notability(0, 0), nameOnly = source == null), subject, source)
     }
 
     /** The next untold section of the current Province's article, or else of the Country's. */

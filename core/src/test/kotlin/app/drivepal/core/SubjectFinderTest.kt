@@ -204,39 +204,66 @@ class SubjectFinderTest {
     }
 
     @Test
-    fun `Wikipedia is left alone while Overpass works`() {
-        var searches = 0
-        val finder = SubjectFinder(
-            overpass = { OVERPASS_RESPONSE },
-            clockMillis = { 0 },
-            geoSearch = { _, _ -> searches++; realGeoSearch() },
-        )
-
-        finder.subjectsAround(insideTile)
-
-        assertEquals(0, searches)
-    }
-
-    @Test
-    fun `a tile served by the fallback is tried against Overpass again after five minutes and the full data wins`() {
+    fun `a tile served by the fallback is tried against Overpass again after a minute and the full data wins`() {
         var nowMillis = 0L
         var overpassIsDown = true
         val finder = SubjectFinder(
             overpass = { if (overpassIsDown) throw java.io.IOException("down") else OVERPASS_RESPONSE },
             clockMillis = { nowMillis },
-            geoSearch = { _, _ -> realGeoSearch() },
+            geoSearch = { _, _ -> GEOSEARCH_RESPONSE },
         )
 
         val whileDown = finder.subjectsAround(insideTile)
         overpassIsDown = false
-        nowMillis = 4 * 60_000
+        nowMillis = 59_000
         val stillFallback = finder.subjectsAround(insideTile)
-        nowMillis = 5 * 60_000 + 1
+        nowMillis = 60_001
         val afterwards = finder.subjectsAround(insideTile)
 
-        assertEquals(66, whileDown.subjects.size)
-        assertEquals(66, stillFallback.subjects.size)
-        assertEquals(3, afterwards.subjects.size)
+        val temple = "Parthasarathy Temple"
+        assertEquals(listOf("Voorbeeldstad", "Example Castle", temple, "Molen De Hoop"), whileDown.subjects.map { it.name })
+        assertEquals(whileDown.subjects, stillFallback.subjects)
+        assertEquals(listOf("Example Castle", "Molen De Hoop", "Voorbeeldstad", temple), afterwards.subjects.map { it.name })
+        assertEquals(null, afterwards.problem)
+    }
+
+    @Test
+    fun `Wikipedia's map search adds the landmarks Overpass does not know, even while Overpass works`() {
+        val finder = SubjectFinder(
+            overpass = { OVERPASS_RESPONSE },
+            clockMillis = { 0 },
+            geoSearch = { _, _ -> GEOSEARCH_RESPONSE },
+        )
+
+        val found = finder.subjectsAround(insideTile)
+
+        // Voorbeeldstad, Example Castle and Molen De Hoop are Overpass's already; the school and the constituency are no landmarks.
+        assertEquals(listOf("Example Castle", "Molen De Hoop", "Voorbeeldstad", "Parthasarathy Temple"), found.subjects.map { it.name })
+        assertEquals(
+            Subject("en.wikipedia/3", "Parthasarathy Temple", SubjectKind.Landmark, Position(52.04, 4.04), wikipediaTag = "en:Parthasarathy Temple"),
+            found.subjects.last(),
+        )
+        assertEquals(null, found.problem)
+    }
+
+    @Test
+    fun `when only Wikipedia's map search fails the Overpass subjects are kept and it is asked again after a minute`() {
+        var nowMillis = 0L
+        var searchIsDown = true
+        val finder = SubjectFinder(
+            overpass = { OVERPASS_RESPONSE },
+            clockMillis = { nowMillis },
+            geoSearch = { _, _ -> if (searchIsDown) throw java.io.IOException("HTTP 429 from en.wikipedia.org") else GEOSEARCH_RESPONSE },
+        )
+
+        val whileDown = finder.subjectsAround(insideTile)
+        searchIsDown = false
+        nowMillis = 61_000
+        val afterwards = finder.subjectsAround(insideTile)
+
+        assertEquals(3, whileDown.subjects.size)
+        assertEquals("Wikipedia geosearch: HTTP 429 from en.wikipedia.org", whileDown.problem)
+        assertEquals(4, afterwards.subjects.size)
         assertEquals(null, afterwards.problem)
     }
 
@@ -253,9 +280,49 @@ class SubjectFinderTest {
         assertEquals(emptyList<Subject>(), found.subjects)
         assertEquals("HTTP 502 from overpass-api.de; Wikipedia geosearch: HTTP 429 from en.wikipedia.org", found.problem)
     }
+
+    /** 4.4 km below the top edge of its tile: the next tile north is beyond the 3 km reach, but within 5 km. */
+    private val belowTheNorthEdge = Position(latitude = 52.06, longitude = 4.05)
+
+    @Test
+    fun `the tile ahead is loaded before the driver gets there`() {
+        var requests = 0
+        val finder = SubjectFinder(overpass = { requests++; OVERPASS_RESPONSE }, clockMillis = { 0 })
+
+        finder.subjectsAround(belowTheNorthEdge, headingDegrees = 0.0)
+        val whileStillInTheFirstTile = requests
+        finder.subjectsAround(Position(52.095, 4.05), headingDegrees = 0.0)
+
+        assertEquals(2, whileStillInTheFirstTile)
+        assertEquals(2, requests)
+    }
+
+    @Test
+    fun `only the tile around the driver is loaded when there is no heading yet or the road leads away from the next tile`() {
+        var requests = 0
+        val finder = SubjectFinder(overpass = { requests++; OVERPASS_RESPONSE }, clockMillis = { 0 })
+
+        finder.subjectsAround(belowTheNorthEdge)
+        val withoutHeading = requests
+        finder.subjectsAround(belowTheNorthEdge, headingDegrees = 180.0)
+
+        assertEquals(1, withoutHeading)
+        assertEquals(1, requests)
+    }
 }
 
 /** A named junction, an unnamed one (ignored), a village with no Wikipedia link, and an unnamed village (ignored). */
+private const val GEOSEARCH_RESPONSE = """
+{"query":{"geosearch":[
+ {"pageid":1,"ns":0,"title":"Voorbeeldstad","lat":52.02,"lon":4.02,"dist":100.0},
+ {"pageid":2,"ns":0,"title":"Example Castle","lat":52.0455,"lon":4.0431,"dist":200.0},
+ {"pageid":3,"ns":0,"title":"Parthasarathy Temple","lat":52.04,"lon":4.04,"dist":300.0},
+ {"pageid":4,"ns":0,"title":"St. Mary's Girls High School, Kozhencherry","lat":52.05,"lon":4.05,"dist":400.0},
+ {"pageid":5,"ns":0,"title":"Aranmula Assembly constituency","lat":52.06,"lon":4.06,"dist":500.0},
+ {"pageid":6,"ns":0,"title":"Molen De Hoop (windmill)","lat":52.01,"lon":4.01,"dist":600.0}
+]}}
+"""
+
 private const val ANNOUNCE_ONLY_RESPONSE = """
 {"version":0.6,"elements":[
  {"type":"node","id":5005,"lat":52.03,"lon":4.03,"tags":{"highway":"motorway_junction","name":"Kozhencherry","ref":"12"}},

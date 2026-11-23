@@ -106,18 +106,22 @@ private fun encode(text: String) = URLEncoder.encode(text, "UTF-8")
 
 private fun degrees(value: Double, decimals: Int = 5) = String.format(Locale.US, "%.${decimals}f", value)
 
+// The public Overpass server often needs 25 to 40 seconds for a tile when it is busy; giving up at 30 meant no villages at all.
+private const val OVERPASS_SERVER_TIMEOUT_SECONDS = 55
+private const val OVERPASS_READ_TIMEOUT_MILLIS = 65_000
+
 object OverpassHttp : OverpassClient {
     override fun query(box: BoundingBox): String {
         val area = "(${degrees(box.south)},${degrees(box.west)},${degrees(box.north)},${degrees(box.east)})"
         val withWikiLink = listOf("wikipedia", "wikidata")
-        val query = "[out:json][timeout:25];(" +
+        val query = "[out:json][timeout:$OVERPASS_SERVER_TIMEOUT_SECONDS];(" +
             withWikiLink.joinToString("") { """nwr["historic"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["tourism"~"^(attraction|viewpoint|museum)$"]["name"]["$it"]$area;""" } +
             withWikiLink.joinToString("") { """nwr["man_made"~"^(lighthouse|windmill)$"]["name"]["$it"]$area;""" } +
             """nwr["place"~"^(city|town|village)$"]["name"]$area;""" + // with or without an article: announced by name
             """node["highway"="motorway_junction"]["name"]$area;""" +
             ");out center tags;"
-        return request(BuildConfig.OVERPASS_URL, body = "data=${encode(query)}")
+        return request(BuildConfig.OVERPASS_URL, body = "data=${encode(query)}", readTimeoutMillis = OVERPASS_READ_TIMEOUT_MILLIS)
     }
 }
 

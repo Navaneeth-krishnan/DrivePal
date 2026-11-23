@@ -23,7 +23,19 @@ class StorySchedulerTest {
         standstill: Boolean = false,
         relevant: (Candidate) -> Boolean = { true },
         told: (Candidate) -> Boolean = { false },
-    ): Candidate? = next(now, candidates.toList(), busy, standstill, relevant, told)
+        nameSaid: (Candidate) -> Boolean = { false },
+    ): Candidate? = choose(now, *candidates, busy = busy, standstill = standstill, relevant = relevant, told = told, nameSaid = nameSaid)?.candidate
+
+    private fun StoryScheduler.choose(
+        now: Long,
+        vararg candidates: Candidate,
+        busy: Boolean = false,
+        standstill: Boolean = false,
+        relevant: (Candidate) -> Boolean = { true },
+        told: (Candidate) -> Boolean = { false },
+        nameSaid: (Candidate) -> Boolean = { false },
+        metres: Map<String, Double> = emptyMap(),
+    ): Choice? = next(now, candidates.toList(), busy, standstill, relevant, told, nameSaid) { metres[it.key] ?: 0.0 }
 
     @Test
     fun `entering a province comes before even a very famous town`() {
@@ -64,27 +76,27 @@ class StorySchedulerTest {
     }
 
     @Test
-    fun `in normal mode the next story waits a minute after the last one ended`() {
+    fun `in chatty mode the next story waits a minute after the last one ended, and only the place's name may be said before`() {
         val ended = scheduler().storyEnded(10 * minute)
         val candidate = town("node/1", 10)
 
-        assertNull(ended.next(10 * minute + 59 * second, candidate))
-        assertEquals(candidate, ended.next(10 * minute + 60 * second, candidate))
+        assertEquals(Choice(candidate, announceOnly = true), ended.choose(10 * minute + 59 * second, candidate))
+        assertEquals(Choice(candidate, announceOnly = false), ended.choose(10 * minute + 60 * second, candidate))
     }
 
     @Test
-    fun `names only waits twenty seconds, a normal drive five minutes and a chatty one a minute`() {
+    fun `stories wait twenty seconds in names mode, five minutes in a normal drive and a minute in a chatty one`() {
         val candidate = town("node/1", 10)
         val names = scheduler(Talkativeness.Names).storyEnded(0)
         val normal = scheduler(Talkativeness.Normal).storyEnded(0)
         val chatty = scheduler(Talkativeness.Chatty).storyEnded(0)
 
-        assertNull(names.next(19 * second, candidate))
-        assertEquals(candidate, names.next(20 * second, candidate))
-        assertNull(normal.next(4 * minute + 59 * second, candidate))
-        assertEquals(candidate, normal.next(5 * minute, candidate))
-        assertNull(chatty.next(59 * second, candidate))
-        assertEquals(candidate, chatty.next(60 * second, candidate))
+        assertNull(names.choose(19 * second, candidate))
+        assertEquals(Choice(candidate, announceOnly = true), names.choose(20 * second, candidate))
+        assertEquals(Choice(candidate, announceOnly = true), normal.choose(4 * minute + 59 * second, candidate))
+        assertEquals(Choice(candidate, announceOnly = false), normal.choose(5 * minute, candidate))
+        assertEquals(Choice(candidate, announceOnly = true), chatty.choose(59 * second, candidate))
+        assertEquals(Choice(candidate, announceOnly = false), chatty.choose(60 * second, candidate))
     }
 
     @Test
@@ -173,5 +185,109 @@ class StorySchedulerTest {
     @Test
     fun `with nothing ready there is nothing to tell`() {
         assertNull(scheduler().next(0))
+    }
+
+    @Test
+    fun `while a story's quiet gap runs a place in range is only announced, after twenty seconds of silence`() {
+        val village = town("node/1", 10)
+        val afterStory = scheduler(Talkativeness.Normal).storyEnded(0)
+
+        assertNull(afterStory.choose(10 * second, village))
+        assertEquals(Choice(village, announceOnly = true), afterStory.choose(25 * second, village))
+        assertEquals(Choice(village, announceOnly = false), afterStory.choose(5 * minute, village))
+    }
+
+    @Test
+    fun `a name already said is not announced again during the quiet gap`() {
+        val village = town("node/1", 10)
+        val afterStory = scheduler(Talkativeness.Normal).storyEnded(0)
+
+        assertNull(afterStory.choose(25 * second, village, nameSaid = { true }))
+    }
+
+    @Test
+    fun `an announcement starts only the twenty second gap, not the quiet gap of a story`() {
+        val village = town("node/1", 10)
+        val afterName = scheduler(Talkativeness.Normal).announcementEnded(0)
+
+        assertNull(afterName.choose(19 * second, village))
+        assertEquals(Choice(village, announceOnly = false), afterName.choose(20 * second, village))
+    }
+
+    @Test
+    fun `during the quiet gap an interlude is not announced and entering a province is announced first`() {
+        val village = town("node/1", 10)
+        val interlude = Candidate("interlude/area/country/Netherlands/History", StoryKind.Interlude, Notability(0, 0))
+        val afterStory = scheduler(Talkativeness.Chatty).storyEnded(0)
+
+        assertNull(afterStory.choose(30 * second, interlude))
+        assertEquals(Choice(province, announceOnly = true), afterStory.choose(30 * second, village, province))
+    }
+
+    @Test
+    fun `an announcement goes to the closest place, not the most notable, and only once it is within a kilometre`() {
+        val famousButFar = town("node/1", editions = 90)
+        val obscureButClose = town("node/2", editions = 3)
+        val afterStory = scheduler(Talkativeness.Normal).storyEnded(0)
+
+        assertEquals(
+            Choice(obscureButClose, announceOnly = true),
+            afterStory.choose(25 * second, famousButFar, obscureButClose, metres = mapOf("node/1" to 900.0, "node/2" to 400.0)),
+        )
+        assertNull(afterStory.choose(25 * second, famousButFar, metres = mapOf("node/1" to 2_800.0)))
+        assertEquals(
+            Choice(famousButFar, announceOnly = true),
+            afterStory.choose(25 * second, famousButFar, metres = mapOf("node/1" to 1_000.0)),
+        )
+    }
+
+    @Test
+    fun `names mode announces only within a kilometre, closest first`() {
+        val far = town("node/1", editions = 90)
+        val near = town("node/2", editions = 3)
+        val names = scheduler(Talkativeness.Names)
+
+        assertNull(names.choose(0, far, metres = mapOf("node/1" to 2_000.0)))
+        assertEquals(Choice(near, announceOnly = true), names.choose(0, far, near, metres = mapOf("node/1" to 800.0, "node/2" to 300.0)))
+    }
+
+    @Test
+    fun `a story prefers a place within a kilometre, and among those the most notable`() {
+        val famousButFar = town("node/1", editions = 90)
+        val obscureAndClose = town("node/2", editions = 3)
+        val knownAndClose = town("node/3", editions = 40)
+
+        assertEquals(
+            Choice(obscureAndClose, announceOnly = false),
+            scheduler().choose(0, famousButFar, obscureAndClose, metres = mapOf("node/1" to 2_500.0, "node/2" to 400.0)),
+        )
+        assertEquals(
+            Choice(knownAndClose, announceOnly = false),
+            scheduler().choose(0, obscureAndClose, knownAndClose, metres = mapOf("node/2" to 300.0, "node/3" to 800.0)),
+        )
+        assertEquals(
+            Choice(famousButFar, announceOnly = false),
+            scheduler().choose(0, famousButFar, obscureAndClose, metres = mapOf("node/1" to 2_500.0, "node/2" to 2_900.0)),
+        )
+    }
+
+    @Test
+    fun `a village without an article is only announced, within a kilometre, even when no quiet gap is running`() {
+        val village = Candidate("node/5", StoryKind.Town, Notability(0, 0), nameOnly = true)
+
+        assertNull(scheduler(Talkativeness.Normal).choose(0, village, metres = mapOf("node/5" to 2_000.0)))
+        assertEquals(Choice(village, announceOnly = true), scheduler(Talkativeness.Normal).choose(0, village, metres = mapOf("node/5" to 600.0)))
+    }
+
+    @Test
+    fun `a landmark is announced from up to three kilometres, a village only within one`() {
+        val landmark = landmark("node/1", editions = 5)
+        val village = town("node/2", editions = 5)
+        val afterStory = scheduler(Talkativeness.Normal).storyEnded(0)
+
+        assertEquals(Choice(landmark, announceOnly = true), afterStory.choose(25 * second, landmark, metres = mapOf("node/1" to 2_400.0)))
+        assertNull(afterStory.choose(25 * second, village, metres = mapOf("node/2" to 2_400.0)))
+        assertEquals(Choice(village, announceOnly = true), afterStory.choose(25 * second, landmark, village, metres = mapOf("node/1" to 2_400.0, "node/2" to 900.0)))
+        assertEquals(Choice(landmark, announceOnly = true), scheduler(Talkativeness.Names).choose(0, landmark, metres = mapOf("node/1" to 2_400.0)))
     }
 }
