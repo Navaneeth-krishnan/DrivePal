@@ -109,6 +109,9 @@ class TripService : Service() {
             return
         }
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        // Debug builds: a simulated drive left behind (the app was killed mid-route) would hide the real GPS from
+        // every app on the phone. Release builds have none.
+        DebugDrive.stop(applicationContext)
         try {
             locationManager.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
@@ -252,6 +255,7 @@ class TripService : Service() {
 
     private fun endTrip() {
         handler.removeCallbacks(tick)
+        DebugDrive.stop(applicationContext) // a simulated drive ends with its Trip, so the real GPS comes back
         tripLog?.endTrip(System.currentTimeMillis())
         tripLog = null
         exploration?.stop()
@@ -274,6 +278,7 @@ class TripService : Service() {
     }
 
     override fun onDestroy() {
+        DebugDrive.stop(applicationContext)
         tripLog?.endTrip(System.currentTimeMillis())
         exploration?.stop()
         closePack()

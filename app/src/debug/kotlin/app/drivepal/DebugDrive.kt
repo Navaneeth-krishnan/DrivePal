@@ -80,6 +80,10 @@ object DebugDrive {
         return null
     }
 
+    /**
+     * Ends the simulated drive and hands the GPS back to the real receiver. Also removes a simulation left behind by an
+     * earlier run of the app, so it is called whenever a Trip starts or ends.
+     */
     fun stop(context: Context) {
         running?.let(handler::removeCallbacks)
         running = null
